@@ -14,6 +14,7 @@ rank_value = {
     'no rank' : 0
 }
 
+# get kraken output and make it a pair of contig id and taxonomy id (only when the instance is correctly classified)
 def process_kraken(kraken_output):
     raw_dict = {}
     with open(kraken_output, 'r') as i:
@@ -29,8 +30,8 @@ def process_kraken(kraken_output):
                 raw_dict[seqid] = taxid # pairs: contig identifier, taxonomy identifier (raw since we still have to generalize)
     return raw_dict
 
+# we use the NCBI taxonomy database to get the generalization of the taxonomy classification, which is stored in the nodes.dmp file inside of the miniDB of Kraken
 def load_NCBI(NCBI_taxonomy):
-    # we use the NCBI taxonomy database to get the generalization of the taxonomy classification, which is stored in the nodes.dmp file inside of the miniDB of Kraken
     taxonomy_dict = {}
     with open(NCBI_taxonomy, 'r') as i:
         for line in i:
@@ -41,6 +42,7 @@ def load_NCBI(NCBI_taxonomy):
             taxonomy_dict[current] = (parent, rank)
     return taxonomy_dict
 
+# given a taxonomy identifier, climb the tree until the wanted generalization is obtained
 def get_parent(taxid, taxonomy_dict, rank):
     current_id = taxid
     parent_id = taxonomy_dict[current_id][0]
@@ -54,15 +56,14 @@ def get_parent(taxid, taxonomy_dict, rank):
     return current_id
     
 
-
-
+# given the pair of contig_id and taxonomy_id , the dictionary that map each required tax_id to his parent and write each pair on the csv file
+# this is the funciton that creates the input for GraphBin2
 def process_raw(raw_dict, taxonomy_dict, rank, output_file):
     with open(output_file, 'w') as o:
         writer = csv.writer(o)
         for seqid, taxid in raw_dict.items():
             gen_taxid = get_parent(taxid, taxonomy_dict, rank)
             writer.writerow([seqid, gen_taxid])
-
 
 
         
