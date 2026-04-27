@@ -59,13 +59,19 @@ def get_parent(taxid, taxonomy_dict, rank):
 # given the pair of contig_id and taxonomy_id , the dictionary that map each required tax_id to his parent and write each pair on the csv file
 # this is the funciton that creates the input for GraphBin2
 def process_raw(raw_dict, taxonomy_dict, rank, output_file):
+    bins = {}
+    count = 1
+    for taxid in raw_dict.values():
+        gen_taxid = get_parent(taxid, taxonomy_dict, rank)
+        if gen_taxid not in bins:
+            bins[gen_taxid] = count
+            count += 1
+
     with open(output_file, 'w') as o:
         writer = csv.writer(o)
         for seqid, taxid in raw_dict.items():
             gen_taxid = get_parent(taxid, taxonomy_dict, rank)
-            writer.writerow([seqid, gen_taxid])
-
-
+            writer.writerow([seqid, f"bin_{bins[gen_taxid]}"])
         
 
 if __name__ == "__main__":
