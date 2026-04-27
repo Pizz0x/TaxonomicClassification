@@ -2,6 +2,8 @@ import csv, os, argparse
 
 tax_set = set()
 NCBI_taxonomy = os.path.expanduser('~/kraken_db/nodes.dmp')
+abundance_path = './GraphBin2/tests/data/ESC_MEGAHIT/abundance.tsv'
+contigs_path = './GraphBin2/tests/data/ESC_MEGAHIT/final.contigs.fa'
 rank_value = {
     'superkingdom' : 10,
     'kingdom' : 9,
@@ -15,8 +17,9 @@ rank_value = {
 }
 
 # get kraken output and make it a pair of contig id and taxonomy id (only when the instance is correctly classified)
-def process_kraken(kraken_output):
+def process_kraken(kraken_output, abundance_path):
     raw_dict = {}
+    abundance_set = load_abundance(abundance_path)
     with open(kraken_output, 'r') as i:
         for line in i:
             features = line.strip().split('\t')
@@ -24,7 +27,7 @@ def process_kraken(kraken_output):
             seqid = features[1] # identifier of the contig
             taxid = int(features[2]) # identifier of the taxonomy classification (it can be species, genus, family, order, class, phylum, kingdom or domain), we need to see if selecting a certain generalization improve results
 
-            if status == 'C': # only consider classified contigs
+            if status == 'C' and seqid in abundance_set: # only consider classified contigs
                 if taxid not in tax_set:
                     tax_set.add(taxid) # add new taxonomy id to the set
                 raw_dict[seqid] = taxid # pairs: contig identifier, taxonomy identifier (raw since we still have to generalize)
@@ -41,6 +44,16 @@ def load_NCBI(NCBI_taxonomy):
             rank = features[2].lower().strip()
             taxonomy_dict[current] = (parent, rank)
     return taxonomy_dict
+
+def load_abundance(abundance_path):
+    abundance_set = set()
+    with open(abundance_path, 'r') as i:
+        for instance in i:
+            features = instance.split('\t')
+            abundance_set.add(features[0])
+    return abundance_set
+
+
 
 # given a taxonomy identifier, climb the tree until the wanted generalization is obtained
 def get_parent(taxid, taxonomy_dict, rank):
@@ -69,9 +82,14 @@ def process_raw(raw_dict, taxonomy_dict, rank, output_file):
 
     with open(output_file, 'w') as o:
         writer = csv.writer(o)
+        count = 1
         for seqid, taxid in raw_dict.items():
             gen_taxid = get_parent(taxid, taxonomy_dict, rank)
-            writer.writerow([seqid, f"bin_{bins[gen_taxid]}"])
+            label = f"res.00{bins[gen_taxid]}" if bins[gen_taxid] < 10 else f"res.0{bins[gen_taxid]}" if bins[gen_taxid] < 100 else f"res.{bins[gen_taxid]}"
+            #label = f"bin.{bins[gen_taxid]}.fa"
+            #contig = f"contig_{count}"
+            #count +=1
+            writer.writerow([seqid, label])
         
 
 if __name__ == "__main__":
@@ -80,6 +98,6 @@ if __name__ == "__main__":
     parser.add_argument("--rank", default="genus")
     args = parser.parse_args()
 
-    raw_dict = process_kraken('./data/kraken_results/output.txt')
+    raw_dict = process_kraken('./data/kraken_results/output.txt', abundance_path)
     taxonomy_dict = load_NCBI(NCBI_taxonomy)
     process_raw(raw_dict, taxonomy_dict, args.rank, './data/kraken_results/output.csv')
