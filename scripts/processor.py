@@ -17,9 +17,10 @@ rank_value = {
 }
 
 # get kraken output and make it a pair of contig id and taxonomy id (only when the instance is correctly classified)
-def process_kraken(kraken_output, abundance_path):
+def process_kraken(kraken_output, abundance_path, contigs_path, min_length):
     raw_dict = {}
     abundance_set = load_abundance(abundance_path)
+    contigs_set = load_contigs(contigs_path, min_length)
     with open(kraken_output, 'r') as i:
         for line in i:
             features = line.strip().split('\t')
@@ -27,7 +28,7 @@ def process_kraken(kraken_output, abundance_path):
             seqid = features[1] # identifier of the contig
             taxid = int(features[2]) # identifier of the taxonomy classification (it can be species, genus, family, order, class, phylum, kingdom or domain), we need to see if selecting a certain generalization improve results
 
-            if status == 'C' and seqid in abundance_set: # only consider classified contigs
+            if status == 'C' and seqid in abundance_set and seqid in contigs_set: # only consider classified contigs
                 if taxid not in tax_set:
                     tax_set.add(taxid) # add new taxonomy id to the set
                 raw_dict[seqid] = taxid # pairs: contig identifier, taxonomy identifier (raw since we still have to generalize)
@@ -53,7 +54,17 @@ def load_abundance(abundance_path):
             abundance_set.add(features[0])
     return abundance_set
 
-
+# we take all the contigs over a certain length
+def load_contigs(contigs_path, min_length):
+    contigs_set = set()
+    with open(contigs_path, 'r') as i:
+        for line in i:
+            if line.startswith('>'):
+                features = line.split()
+                len = int(features[3].split('=')[1])
+                if len >= min_length:
+                    contigs_set.add(features[0][1:]) # no character >
+    return contigs_set
 
 # given a taxonomy identifier, climb the tree until the wanted generalization is obtained
 def get_parent(taxid, taxonomy_dict, rank):
@@ -96,8 +107,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--rank", default="genus")
+    parser.add_argument("--len", default=600)
     args = parser.parse_args()
 
-    raw_dict = process_kraken('./data/kraken_results/output.txt', abundance_path)
+    raw_dict = process_kraken('./data/kraken_results/output.txt', abundance_path, contigs_path, args.len)
     taxonomy_dict = load_NCBI(NCBI_taxonomy)
     process_raw(raw_dict, taxonomy_dict, args.rank, './data/kraken_results/output.csv')
