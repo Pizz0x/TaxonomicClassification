@@ -22,8 +22,9 @@ rule megahit:
 
         MAX_K=$(ls {params.path}tmp/intermediate_contigs/k*.contigs.fa | sed 's/.*k//;s/.contigs.fa//' | sort -n | tail -n 1)
 
+        megahit_toolkit contig2fastg $MAX_K {params.path}tmp/intermediate_contigs/k141.contigs.fa > {params.path}tmp/tmp_graph.fastg
 
-        megahit_toolkit contig2fastg $MAX_K {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa > {output.graph}
+        python3 scripts/fastg_to_gfa.py --input {params.path}tmp/tmp_graph.fastg --output {output.graph}
 
         cp {params.path}tmp/final.contigs.fa {output.contigs}
         cp {params.path}tmp/intermediate_contigs/k141.contigs.fa {output.input_contigs}
@@ -48,16 +49,17 @@ rule abundance:
         r1 = config["reads_1"],
         r2 = config["reads_2"],
         contigs = rules.megahit.output.contigs
+    params:
+        index = f"{config['abundance_path']}tmp/contigs_index"
     output:
-        index = f"{config['abundance_path']}tmp/contigs_index",
         alignment = f"{config['abundance_path']}tmp/alignment.bam",
         abundance = f"{config['abundance_path']}abundance.tsv"
     shell:
         """
-        bowtie2-build {input.contigs} {output.index}
-        bowtie2 -x {output.index} -1 {input.r1} -2 {input.r2} | samtools view -bS - | samtools sort -o {output.alignment} -
+        bowtie2-build {input.contigs} {params.index}
+        bowtie2 -x {params.index} -1 {input.r1} -2 {input.r2} | samtools view -bS - | samtools sort -o {output.alignment} -
         samtools index {output.alignment}
-        samtools idxstats {output.alignment} | cut -f 1,3 > {output.abundance}
+        samtools idxstats {output.alignment} | grep -v "*" |cut -f 1,3 > {output.abundance}
         """
         
 

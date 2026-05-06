@@ -4,4 +4,4 @@ kraken_path: "./data/kraken_results/"
 reads_1: "./data/input_reads/SRR5058924_1.fastq.gz"
 reads_2: "./data/input_reads/SRR5058924_2.fastq.gz"
 rank: "species"
-length_threshold: 600
+length_threshold: 0

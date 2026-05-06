@@ -55,7 +55,7 @@ def load_abundance(abundance_path):
     return abundance_set
 
 # we take all the contigs over a certain length
-def load_contigs(contigs_path, min_length):
+def load_contigs(contigs_path, min_length = 0):
     contigs_set = set()
     with open(contigs_path, 'r') as i:
         for line in i:
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--rank", default="genus")
-    parser.add_argument("--len", default=600)
+    parser.add_argument("--len", default=0)
     parser.add_argument("--kraken", default='./data/kraken_results/output.txt')
     parser.add_argument("--output", default='./data/kraken_results/output.csv')
     parser.add_argument("--abundance", default=abundance_path)
@@ -117,3 +117,6 @@ if __name__ == "__main__":
     raw_dict = process_kraken(args.kraken, args.abundance, args.contigs, int(args.len))
     taxonomy_dict = load_NCBI(NCBI_taxonomy)
     process_raw(raw_dict, taxonomy_dict, args.rank, args.output)
+
+
+#graphbin2 --assembler megahit --graph ./data/megahit_results/final_graph.gfa --contigs ./data/megahit_results/final_contigs.fa --binned ./data/kraken_results/output.csv --abundance ./data/abundance_results/abundance.tsv --output data/graphBin_results/
