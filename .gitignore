@@ -1,3 +1,4 @@
 .vscode
 data/
 GraphBin2/
+.snakemake/
