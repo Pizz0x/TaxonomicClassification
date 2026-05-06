@@ -1,5 +1,7 @@
-abundance_path: "./GraphBin2/tests/data/ESC_MEGAHIT/abundance.tsv"
+abundance_path: "./data/abundance_results/"
 megahit_path: "./data/megahit_results/"
 kraken_path: "./data/kraken_results/"
 reads_1: "./data/input_reads/SRR5058924_1.fastq.gz"
 reads_2: "./data/input_reads/SRR5058924_2.fastq.gz"
+rank: "species"
+length_threshold: 600

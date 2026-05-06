@@ -43,22 +43,41 @@ rule kraken2:
     shell:
         "kraken2 --db {params.db} {input.contigs} > {output.out} --report {output.report} --threads {threads}"
 
+rule abundance:
+    input:
+        r1 = config["reads_1"],
+        r2 = config["reads_2"],
+        contigs = rules.megahit.output.contigs
+    output:
+        index = f"{config['abundance_path']}tmp/contigs_index",
+        alignment = f"{config['abundance_path']}tmp/alignment.bam",
+        abundance = f"{config['abundance_path']}abundance.tsv"
+    shell:
+        """
+        bowtie2-build {input.contigs} {output.index}
+        bowtie2 -x {output.index} -1 {input.r1} -2 {input.r2} | samtools view -bS - | samtools sort -o {output.alignment} -
+        samtools index {output.alignment}
+        samtools idxstats {output.alignment} | cut -f 1,3 > {output.abundance}
+        """
+        
+
+
 rule preprocessor:
     input:
         kraken = rules.kraken2.output.out,
-        abundance = config["abundance_path"],
+        abundance = rules.abundance.output.abundance,
         contigs = rules.megahit.output.contigs
     output:
         bins = f"{config['kraken_path']}/output.csv"
     params:
-        rank = "species",
-        len = 600
+        rank = config["rank"],
+        len = config["length_threshold"]
     shell:
         "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len}"
 
 rule graphbin2:
     input: 
-        abundance = config["abundance_path"],
+        abundance = rules.abundance.output.abundance,
         contigs = rules.megahit.output.input_contigs,
         graph = rules.megahit.output.graph,
         bins = rules.preprocessor.output.bins

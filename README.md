@@ -12,15 +12,17 @@ Command to execute Kraken2:
 
 another thing that we should try is to compare kraken with other technologies like CLARK
 
+Command to execute Megahit:
 rm -rf ./data/megahit_results_tmp
-
 megahit -1 ./data/input_reads/SRR5058924_1.fastq.gz -2 ./data/input_reads/SRR5058924_2.fastq.gz -o ./data/megahit_results_tmp
-
 MAX_K=$(ls ./data/megahit_results_tmp/intermediate_contigs/k*.contigs.fa | sed 's/.*k//;s/.contigs.fa//' | sort -n | tail -n 1)
-
 megahit_toolkit contig2fastg 141 ./data/megahit_results/final_contigs.fa > ./data/megahit_results/final_graph.gfa
-
 cp ./data/megahit_results_tmp/final.contigs.fa ./data/megahit_results/final.contigs.fa
 cp ./data/megahit_results_tmp/final_graph.gfa ./data/megahit_results/final_graph.gfa
-
 rm -rf ./data/megahit_results_tmp
+
+Command to execute Bowtie2:
+bowtie2-build ./data/megahit_results/final_contigs.fa contigs_index
+bowtie2 -x contigs_index -1 ./data/input_reads/SRR5058924_1.fastq.gz -2 ./data/input_reads/SRR5058924_2.fastq.gz | samtools view -bS - | samtools sort -o alignment.bam -
+samtools index alignment.bam
+samtools idxstats alignment.bam | cut -f 1,3 > abundance.tsv
