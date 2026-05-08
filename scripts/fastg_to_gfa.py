@@ -7,15 +7,15 @@ import re
 def fastg_to_gfa(fasta_file, gfa_file):
     """
     Convert FASTA/FASTG contigs to GFA format.
-    Preserves contig names and extracts length information.
+    Preserves NODE names from FASTG file (required for GraphBin2 compatibility).
     Skips reverse complement entries (those with ' suffix).
-    Extracts base node name from composite node names (e.g., NODE_1:NODE_1,NODE_2 -> NODE_1).
     """
     try:
         with open(fasta_file, 'r') as fi, open(gfa_file, 'w') as fo:
             name = None
             seq = []
-            
+            links = set()
+
             for line in fi:
                 line = line.rstrip('\n')
                 
@@ -29,10 +29,15 @@ def fastg_to_gfa(fasta_file, gfa_file):
                     # Parse header (remove '>' and extract name)
                     header = line[1:]  # Remove '>'
                     # Extract just the contig name (first field before space or semicolon)
-                    name = header.split()[0].rstrip(';')
+                    full_name = header.split()[0].rstrip(';')
                     # Extract base node name from composite node names (before any ':')
-                    name = name.split(':')[0]
+                    name_parts = full_name.split(':')
+                    if len(name_parts) > 1:
+                        base_name = name_parts[0]  # Take the first part as the node name
+                        for part in name_parts[1].split(','):
+                            links.add((base_name, part))  # Store the link for later processing
                     seq = []
+                    name = base_name if len(name_parts) > 1 else full_name
                 else:
                     # Accumulate sequence
                     seq.append(line.strip())
@@ -42,6 +47,11 @@ def fastg_to_gfa(fasta_file, gfa_file):
                 sequence = ''.join(seq)
                 length = len(sequence)
                 fo.write(f"S\t{name}\t{sequence}\tLN:i:{length}\n")
+            
+            for link in links:
+                l0_sign = '-' if link[0].endswith("'") else '+'
+                l1_sign = '-' if link[1].endswith("'") else '+'
+                fo.write(f"L\t{link[0]}\t{l0_sign}\t{link[1]}\t{l1_sign}\t0M\n")
         
         print(f"Successfully converted {fasta_file} to {gfa_file}", file=sys.stderr)
         return 0

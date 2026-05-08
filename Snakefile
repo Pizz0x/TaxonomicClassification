@@ -20,16 +20,14 @@ rule megahit:
 
         megahit -1 {input.r1} -2 {input.r2} -o {params.path}tmp
 
-        MAX_K=$(ls {params.path}tmp/intermediate_contigs/k*.contigs.fa | sed 's/.*k//;s/.contigs.fa//' | sort -n | tail -n 1)
+        MAX_K=$(ls {params.path}tmp/intermediate_contigs/k*.final.contigs.fa | sed 's/.*k//;s/.final.contigs.fa//' | sort -n | tail -n 1)
 
-        megahit_toolkit contig2fastg $MAX_K {params.path}tmp/intermediate_contigs/k141.contigs.fa > {params.path}tmp/tmp_graph.fastg
+        megahit_toolkit contig2fastg $MAX_K {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa > {params.path}tmp/tmp_graph.fastg
 
         python3 scripts/fastg_to_gfa.py --input {params.path}tmp/tmp_graph.fastg --output {output.graph}
 
         cp {params.path}tmp/final.contigs.fa {output.contigs}
-        cp {params.path}tmp/intermediate_contigs/k141.contigs.fa {output.input_contigs}
-
-        rm -rf {params.path}tmp
+        cp {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa {output.input_contigs}
         """
 
 rule kraken2:
