@@ -1,8 +1,6 @@
 
 import argparse
 import sys
-import re
-
 
 def fastg_to_gfa(fasta_file, gfa_file):
     """
