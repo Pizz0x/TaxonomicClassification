@@ -23,8 +23,9 @@ rule megahit:
         MAX_K=$(ls {params.path}tmp/intermediate_contigs/k*.final.contigs.fa | sed 's/.*k//;s/.final.contigs.fa//' | sort -n | tail -n 1)
 
         megahit_toolkit contig2fastg $MAX_K {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa > {params.path}tmp/tmp_graph.fastg
-
         python3 scripts/fastg_to_gfa.py --input {params.path}tmp/tmp_graph.fastg --output {output.graph}
+
+        # megahit_core export-gfa ${{MAX_K_DIR}}/$(basename ${{MAX_K_DIR}}).contigs.fa.gz > {output.graph}
 
         cp {params.path}tmp/final.contigs.fa {output.contigs}
         cp {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa {output.input_contigs}

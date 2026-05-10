@@ -7,8 +7,9 @@ import re
 def fastg_to_gfa(fasta_file, gfa_file):
     """
     Convert FASTA/FASTG contigs to GFA format.
-    Preserves NODE names from FASTG file (required for GraphBin2 compatibility).
+    Preserves contig names and extracts length information.
     Skips reverse complement entries (those with ' suffix).
+    Extracts base node name from composite node names (e.g., NODE_1:NODE_1,NODE_2 -> NODE_1).
     """
     try:
         with open(fasta_file, 'r') as fi, open(gfa_file, 'w') as fo:
@@ -50,8 +51,10 @@ def fastg_to_gfa(fasta_file, gfa_file):
             
             for link in links:
                 l0_sign = '-' if link[0].endswith("'") else '+'
+                node0 = link[0].rstrip("'")
                 l1_sign = '-' if link[1].endswith("'") else '+'
-                fo.write(f"L\t{link[0]}\t{l0_sign}\t{link[1]}\t{l1_sign}\t0M\n")
+                node1 = link[1].rstrip("'")
+                fo.write(f"L\t{node0}\t{l0_sign}\t{node1}\t{l1_sign}\t0M\n")
         
         print(f"Successfully converted {fasta_file} to {gfa_file}", file=sys.stderr)
         return 0

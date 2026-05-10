@@ -3,7 +3,7 @@
 implementation of an extension for GraphBin2 such that it can accept in input the results obtained from a classifier like Kraken2
 
 Command to execute GraphBin2
-```graphbin2 --assembler megahit --graph ./data/megahit_results/final_graph.gfa --contigs ./data/megahit_results/k141.contigs.fa --binned ./data/kraken_results/output.csv --abundance ./GraphBin2/tests/data/ESC_MEGAHIT/abundance.tsv --output ./data/graphBin_results```
+```graphbin2 --assembler megahit --graph ./data/megahit_results/graph.gfa --contigs ./data/megahit_results/k141.contigs.fa --binned ./data/kraken_results/output.csv --abundance ./GraphBin2/tests/data/ESC_MEGAHIT/abundance.tsv --output ./data/graphBin_results```
 
 ```graphbin2 --assembler flye --graph ./GraphBin2/tests/data/1Y3B_Flye/assembly_graph.gfa --contigs ./GraphBin2/tests/data/1Y3B_Flye/assembly.fasta --paths ./GraphBin2/tests/data/1Y3B_Flye/assembly_info.txt --binned ./data/kraken_results/output.csv --abundance ./GraphBin2/tests/data/1Y3B_Flye/abundance.tsv --output ./data```
 
