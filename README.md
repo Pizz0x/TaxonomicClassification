@@ -2,7 +2,7 @@
 
 Implementation of an extension for GraphBin2 such that it can accept in input the results obtained from a classifier like Kraken2
 
-### Implement the Setup
+### Setting Up the Repository
 
 To obtain the envirmonment required to run the code you need to execute: \
 ```conda env create -f environment.yml```\
