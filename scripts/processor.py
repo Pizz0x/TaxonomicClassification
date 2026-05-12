@@ -27,7 +27,6 @@ def process_kraken(kraken_output, abundance_path, contigs_path, min_length):
             status = features[0] # classified or not
             seqid = features[1] # identifier of the contig
             taxid = int(features[2]) # identifier of the taxonomy classification (it can be species, genus, family, order, class, phylum, kingdom or domain), we need to see if selecting a certain generalization improve results
-
             if status == 'C' and seqid in abundance_set and seqid in contigs_set: # only consider classified contigs
                 if taxid not in tax_set:
                     tax_set.add(taxid) # add new taxonomy id to the set
@@ -60,10 +59,10 @@ def load_contigs(contigs_path, min_length = 0):
     with open(contigs_path, 'r') as i:
         for line in i:
             if line.startswith('>'):
-                features = line.split()
-                len = int(features[3].split('=')[1])
+                node = line[1:].split()[0] # get the identifier of the contig (without > and without the rest of the description)
+                len = int(node.split('_')[3])
                 if len >= min_length:
-                    contigs_set.add(features[0][1:]) # no character >
+                    contigs_set.add(node) # no character >
     return contigs_set
 
 # given a taxonomy identifier, climb the tree until the wanted generalization is obtained
@@ -82,7 +81,7 @@ def get_parent(taxid, taxonomy_dict, rank):
 
 # given the pair of contig_id and taxonomy_id , the dictionary that map each required tax_id to his parent and write each pair on the csv file
 # this is the funciton that creates the input for GraphBin2
-def process_raw(raw_dict, taxonomy_dict, rank, output_file):
+def process_raw(raw_dict, taxonomy_dict, rank, output_file, assembler):
     bins = {}
     count = 1
     for taxid in raw_dict.values():
@@ -96,7 +95,10 @@ def process_raw(raw_dict, taxonomy_dict, rank, output_file):
         count = 1
         for seqid, taxid in raw_dict.items():
             gen_taxid = get_parent(taxid, taxonomy_dict, rank)
-            label = f"res.00{bins[gen_taxid]}" if bins[gen_taxid] < 10 else f"res.0{bins[gen_taxid]}" if bins[gen_taxid] < 100 else f"res.{bins[gen_taxid]}"
+            if assembler == "megahit":
+                label = f"res.00{bins[gen_taxid]}" if bins[gen_taxid] < 10 else f"res.0{bins[gen_taxid]}" if bins[gen_taxid] < 100 else f"res.{bins[gen_taxid]}"
+            elif assembler == "spades":
+                label = f"bin_{bins[gen_taxid]}"
             #label = f"bin.{bins[gen_taxid]}.fa"
             #contig = f"contig_{count}"
             #count +=1
@@ -112,11 +114,12 @@ if __name__ == "__main__":
     parser.add_argument("--output", default='./data/kraken_results/output.csv')
     parser.add_argument("--abundance", default=abundance_path)
     parser.add_argument("--contigs", default=contigs_path)
+    parser.add_argument("--assembler", default="megahit")
     args = parser.parse_args()
 
     raw_dict = process_kraken(args.kraken, args.abundance, args.contigs, int(args.len))
     taxonomy_dict = load_NCBI(NCBI_taxonomy)
-    process_raw(raw_dict, taxonomy_dict, args.rank, args.output)
+    process_raw(raw_dict, taxonomy_dict, args.rank, args.output, args.assembler)
 
 
 #graphbin2 --assembler megahit --graph ./data/megahit_results/final_graph.gfa --contigs ./data/megahit_results/final_contigs.fa --binned ./data/kraken_results/output.csv --abundance ./data/abundance_results/abundance.tsv --output data/graphBin_results/

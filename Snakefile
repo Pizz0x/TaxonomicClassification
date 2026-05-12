@@ -1,4 +1,5 @@
 configfile: "config.yaml"
+assembler = config['assembler'].lower()
 
 rule all:
     input:
@@ -17,6 +18,7 @@ rule megahit:
     shell:
         """
         rm -rf {params.path}tmp
+        
 
         megahit -1 {input.r1} -2 {input.r2} -o {params.path}tmp
 
@@ -29,11 +31,53 @@ rule megahit:
 
         cp {params.path}tmp/final.contigs.fa {output.contigs}
         cp {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa {output.input_contigs}
+
+        rm -rf {params.path}tmp
         """
+
+rule spades:
+    input:
+        r1 = config['reads_1'],
+        r2 = config['reads_2']
+    params:
+        path = config["spades_path"]
+    output:
+        contigs = config['spades_path'] + "contigs.fasta",
+        paths = config['spades_path'] + 'contigs.paths',
+        graph = config['spades_path'] + 'assembly_graph_with_scaffolds.gfa'
+    shell:
+        """
+        rm -rf {params.path}tmp
+        metaspades.py -1 {input.r1} -2 {input.r2} -o {params.path}tmp -t 16
+
+        cp {params.path}tmp/contigs.fasta {output.contigs}
+        cp {params.path}tmp/contigs.paths {output.paths}
+        cp {params.path}tmp/assembly_graph_with_scaffolds.gfa {output.graph}
+        rm -rf {params.path}tmp
+        """
+
+def get_assembler(wildcards):
+    if assembler == 'megahit':
+        return {
+            "contigs": rules.megahit.output.contigs,
+            "graph": rules.megahit.output.graph,
+            "input_contigs": rules.megahit.output.input_contigs,
+            "paths": []
+        }
+    elif assembler == 'spades':
+        return {
+            "contigs": rules.spades.output.contigs,
+            "graph": rules.spades.output.graph,
+            "input_contigs": rules.spades.output.contigs,
+            "paths": rules.spades.output.paths
+        }
+    else:
+        raise ValueError(f"Unsupported assembler: {assembler}")
+
 
 rule kraken2:
     input:
-        contigs = rules.megahit.output.contigs
+        contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
         out = f"{config['kraken_path']}/kraken_output.txt",
         report = f"{config['kraken_path']}/kraken_report.txt"
@@ -47,7 +91,7 @@ rule abundance:
     input:
         r1 = config["reads_1"],
         r2 = config["reads_2"],
-        contigs = rules.megahit.output.contigs
+        contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     params:
         index = f"{config['abundance_path']}tmp/contigs_index"
     output:
@@ -67,22 +111,24 @@ rule preprocessor:
     input:
         kraken = rules.kraken2.output.out,
         abundance = rules.abundance.output.abundance,
-        contigs = rules.megahit.output.contigs
+        contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
         bins = f"{config['kraken_path']}/output.csv"
     params:
         rank = config["rank"],
         len = config["length_threshold"]
     shell:
-        "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len}"
+        "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler}"
 
 rule graphbin2:
     input: 
         abundance = rules.abundance.output.abundance,
-        contigs = rules.megahit.output.input_contigs,
-        graph = rules.megahit.output.graph,
+        contigs = lambda wildcards: get_assembler(wildcards)["input_contigs"],
+        graph = lambda wildcards: get_assembler(wildcards)["graph"],
+        paths = lambda wildcards: get_assembler(wildcards)["paths"],
         bins = rules.preprocessor.output.bins
     output:
         final_csv = "data/graphBin_results/graphbin2_output.csv"
-    shell:
-        "graphbin2 --assembler megahit --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/"
+    run:
+        paths_flag = f"--paths {input.paths}" if assembler=='spades' else ""
+        shell(f"graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/ {paths_flag}")

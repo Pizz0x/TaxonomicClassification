@@ -17,6 +17,7 @@ dependencies:
   - gfatools=0.5.5
   - sra-tools=2.10.0
   - htslib=1.21
+  - spades
   
   # system's utility
   - wget
