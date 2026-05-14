@@ -15,6 +15,8 @@ rule megahit:
         contigs = config["megahit_path"] + "final_contigs.fa",
         input_contigs = config["megahit_path"] + "k141.contigs.fa",
         graph = config["megahit_path"] + "final_graph.gfa"
+    conda:
+        "bio-dev"
     shell:
         """
         rm -rf {params.path}tmp
@@ -45,10 +47,12 @@ rule spades:
         contigs = config['spades_path'] + "contigs.fasta",
         paths = config['spades_path'] + 'contigs.paths',
         graph = config['spades_path'] + 'assembly_graph_with_scaffolds.gfa'
+    conda:
+        "bio-dev"
     shell:
         """
         rm -rf {params.path}tmp
-        metaspades.py -1 {input.r1} -2 {input.r2} -o {params.path}tmp -t 16
+        metaspades.py -k 21,33,55,77,99,127 -1 {input.r1} -2 {input.r2} -o {params.path}tmp -t 16
 
         cp {params.path}tmp/contigs.fasta {output.contigs}
         cp {params.path}tmp/contigs.paths {output.paths}
@@ -79,11 +83,13 @@ rule kraken2:
     input:
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
-        out = f"{config['kraken_path']}/kraken_output.txt",
-        report = f"{config['kraken_path']}/kraken_report.txt"
+        out = f"{config['kraken_path']}kraken_output.txt",
+        report = f"{config['kraken_path']}kraken_report.txt"
     params:
         db = "~/kraken_db"
     threads: 4
+    conda:
+        "bio-dev"
     shell:
         "kraken2 --db {params.db} {input.contigs} > {output.out} --report {output.report} --threads {threads}"
 
@@ -97,6 +103,8 @@ rule abundance:
     output:
         alignment = f"{config['abundance_path']}tmp/alignment.bam",
         abundance = f"{config['abundance_path']}abundance.tsv"
+    conda: 
+        "bio-dev"
     shell:
         """
         bowtie2-build {input.contigs} {params.index}
@@ -105,6 +113,20 @@ rule abundance:
         samtools idxstats {output.alignment} | grep -v "*" |cut -f 1,3 > {output.abundance}
         """
         
+rule metabat2:
+    input:
+        contigs = lambda wildcards: get_assembler(wildcards)['contigs'],
+        alignment = rules.abundance.output.alignment
+    output:
+        bins = f"{config['metabat_path']}bins/",
+        depth = f"{config['abundance_path']}depth.txt"
+    conda:
+        "envs/metabat2.yml"
+    shell:
+        """
+        jgi_summarize_bam_contig_depths --outputDepth {output.depth} {input.alignment}
+        metabat2 -i {input.contigs} -a {output.depth} -o {output.bins}bin
+        """
 
 
 rule preprocessor:
@@ -113,7 +135,7 @@ rule preprocessor:
         abundance = rules.abundance.output.abundance,
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
-        bins = f"{config['kraken_path']}/output.csv"
+        bins = f"{config['kraken_path']}output.csv"
     params:
         rank = config["rank"],
         len = config["length_threshold"]
@@ -129,6 +151,9 @@ rule graphbin2:
         bins = rules.preprocessor.output.bins
     output:
         final_csv = "data/graphBin_results/graphbin2_output.csv"
-    run:
-        paths_flag = f"--paths {input.paths}" if assembler=='spades' else ""
-        shell(f"graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/ {paths_flag}")
+    conda:
+        "envs/graphbin2.yml"
+    params:
+        paths_flag = lambda wildcards, input: f"--paths {input.paths}" if assembler=='spades' else ""
+    shell:
+        "graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/ {params.paths_flag}"
