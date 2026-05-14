@@ -16,7 +16,7 @@ rule megahit:
         input_contigs = config["megahit_path"] + "k141.contigs.fa",
         graph = config["megahit_path"] + "final_graph.gfa"
     conda:
-        "bio-dev"
+        "envs/assembler.yml"
     shell:
         """
         rm -rf {params.path}tmp
@@ -48,7 +48,7 @@ rule spades:
         paths = config['spades_path'] + 'contigs.paths',
         graph = config['spades_path'] + 'assembly_graph_with_scaffolds.gfa'
     conda:
-        "bio-dev"
+        "envs/assembler.yml"
     shell:
         """
         rm -rf {params.path}tmp
@@ -89,7 +89,7 @@ rule kraken2:
         db = "~/kraken_db"
     threads: 4
     conda:
-        "bio-dev"
+        "envs/assembler.yml"
     shell:
         "kraken2 --db {params.db} {input.contigs} > {output.out} --report {output.report} --threads {threads}"
 
@@ -103,8 +103,8 @@ rule abundance:
     output:
         alignment = f"{config['abundance_path']}tmp/alignment.bam",
         abundance = f"{config['abundance_path']}abundance.tsv"
-    conda: 
-        "bio-dev"
+    conda:
+        "envs/assembler.yml"
     shell:
         """
         bowtie2-build {input.contigs} {params.index}
@@ -119,7 +119,7 @@ rule metabat2:
         alignment = rules.abundance.output.alignment
     output:
         bins = f"{config['metabat_path']}bins/",
-        depth = f"{config['abundance_path']}depth.txt"
+        depth = f"{config['metabat_path']}depth.txt"
     conda:
         "envs/metabat2.yml"
     shell:
@@ -148,6 +148,7 @@ rule graphbin2:
         contigs = lambda wildcards: get_assembler(wildcards)["input_contigs"],
         graph = lambda wildcards: get_assembler(wildcards)["graph"],
         paths = lambda wildcards: get_assembler(wildcards)["paths"],
+        # an alternative is to use metabat2 bins as input
         bins = rules.preprocessor.output.bins
     output:
         final_csv = "data/graphBin_results/graphbin2_output.csv"
