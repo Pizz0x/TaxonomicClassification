@@ -5,6 +5,7 @@ rule all:
     input:
         "data/graphBin_results/graphbin2_output.csv"
 
+
 rule megahit:
     input:
         r1 = config["reads_1"],
@@ -37,6 +38,7 @@ rule megahit:
         rm -rf {params.path}tmp
         """
 
+
 rule spades:
     input:
         r1 = config['reads_1'],
@@ -59,6 +61,7 @@ rule spades:
         cp {params.path}tmp/assembly_graph_with_scaffolds.gfa {output.graph}
         rm -rf {params.path}tmp
         """
+
 
 def get_assembler(wildcards):
     if assembler == 'megahit':
@@ -93,6 +96,7 @@ rule kraken2:
     shell:
         "kraken2 --db {params.db} {input.contigs} > {output.out} --report {output.report} --threads {threads}"
 
+
 rule abundance:
     input:
         r1 = config["reads_1"],
@@ -101,7 +105,7 @@ rule abundance:
     params:
         index = f"{config['abundance_path']}tmp/contigs_index"
     output:
-        alignment = f"{config['abundance_path']}tmp/alignment.bam",
+        alignment = f"{config['abundance_path']}alignment.bam",
         abundance = f"{config['abundance_path']}abundance.tsv"
     conda:
         "envs/assembler.yml"
@@ -112,22 +116,22 @@ rule abundance:
         samtools index {output.alignment}
         samtools idxstats {output.alignment} | grep -v "*" |cut -f 1,3 > {output.abundance}
         """
-        
-rule metabat2:
-    input:
-        contigs = lambda wildcards: get_assembler(wildcards)['contigs'],
-        alignment = rules.abundance.output.alignment
-    output:
-        bins = f"{config['metabat_path']}bins/",
-        depth = f"{config['metabat_path']}depth.txt"
-    conda:
-        "envs/metabat2.yml"
-    shell:
-        """
-        jgi_summarize_bam_contig_depths --outputDepth {output.depth} {input.alignment}
-        metabat2 -i {input.contigs} -a {output.depth} -o {output.bins}bin
-        """
 
+
+# rule metabat2:
+#     input:
+#         contigs = lambda wildcards: get_assembler(wildcards)['contigs'],
+#         alignment = rules.abundance.output.alignment
+#     output:
+#         bins = f"{config['metabat_path']}bins/",
+#         depth = f"{config['metabat_path']}depth.txt"
+#     conda:
+#         "envs/metabat2.yml"
+#     shell:
+#         """
+#         jgi_summarize_bam_contig_depths --outputDepth {output.depth} {input.alignment} 
+#         metabat2 -i {input.contigs} -a {output.depth} -o {output.bins}bin -m 1500
+#         """
 
 rule preprocessor:
     input:
@@ -142,19 +146,25 @@ rule preprocessor:
     shell:
         "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler}"
 
+
 rule graphbin2:
     input: 
         abundance = rules.abundance.output.abundance,
+        alignment = rules.abundance.output.alignment,
         contigs = lambda wildcards: get_assembler(wildcards)["input_contigs"],
         graph = lambda wildcards: get_assembler(wildcards)["graph"],
         paths = lambda wildcards: get_assembler(wildcards)["paths"],
         # an alternative is to use metabat2 bins as input
         bins = rules.preprocessor.output.bins
     output:
-        final_csv = "data/graphBin_results/graphbin2_output.csv"
+        graphbin_csv = config['graphbin_path'] + "graphbin2_output.csv",
+        results = config['graphbin_path'] + "results.csv"
     conda:
         "envs/graphbin2.yml"
     params:
         paths_flag = lambda wildcards, input: f"--paths {input.paths}" if assembler=='spades' else ""
     shell:
-        "graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/ {params.paths_flag}"
+        """
+        graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/ {params.paths_flag}
+        python3 ./scripts/reads_binning.py --alignment {input.alignment} --bin {output.graphbin_csv} --o {output.results}
+        """

@@ -9,9 +9,9 @@ To obtain the envirmonment required to run the code you need to execute: \
 Which will create a new conda environment called bio-dev that has all the necessary dependencies.
 
 Then you can run the pipeline using the snakefile, using the command:\
-```snakefile --cores 4```
+```snakemake --cores 4```
 
 Possible Next Steps:
 
-- implement the tool using SPAdes as assembler
 - compare kraken with other technologies like CLARK
+- dobbiamo trovare il modo per mappare le reads ai contigs dall'assemblatore (forse bowtie dato che usa reads e contigs)

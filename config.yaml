@@ -5,6 +5,7 @@ kraken_path: "./data/kraken_results/"
 metabat_path: "./data/metabat_results/"
 reads_1: "./data/input_reads/SRR5058924_1.fastq.gz"
 reads_2: "./data/input_reads/SRR5058924_2.fastq.gz"
+graphbin_path: "./data/graphBin_results/"
 assembler: "spades"
 rank: "species"
 length_threshold: 0
