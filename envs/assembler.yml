@@ -12,7 +12,7 @@ dependencies:
   - spades
   - gfatools=0.5.5
   # Classification
-  - kraken2=2.0.8_beta
+  - kraken2
   # Utilities
   - blast=2.5.0
   - sra-tools=2.10.0

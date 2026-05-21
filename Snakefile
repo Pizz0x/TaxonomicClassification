@@ -81,8 +81,7 @@ def get_assembler(wildcards):
     else:
         raise ValueError(f"Unsupported assembler: {assembler}")
 
-
-rule kraken2:
+rule kraken2_contigs:
     input:
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
@@ -96,6 +95,31 @@ rule kraken2:
     shell:
         "kraken2 --db {params.db} {input.contigs} > {output.out} --report {output.report} --threads {threads}"
 
+rule kraken2_reads:
+    input:
+        #    contigs = lambda wildcards: get_assembler(wildcards)['contigs']
+        r1 = config['reads_1'],
+        r2 = config['reads_2']
+    output:
+        out = f"{config['kraken_path']}kraken_reads_output.txt",
+        report = f"{config['kraken_path']}kraken_reads_report.txt"
+    params:
+        db = "~/kraken_db",
+        # Aggiungiamo un check automatico per la compressione
+        gzip = "--gzip-compressed" if config['reads_1'].endswith(".gz") else ""
+    threads: 4
+    conda:
+        "envs/assembler.yml"
+    shell:
+        """
+        kraken2 --db {params.db} \
+        --paired \
+        {params.gzip} \
+        --fastq-input \
+        --report {output.report} \
+        --threads {threads} \
+        {input.r1} {input.r2} > {output.out}
+        """
 
 rule abundance:
     input:
@@ -135,7 +159,7 @@ rule abundance:
 
 rule preprocessor:
     input:
-        kraken = rules.kraken2.output.out,
+        kraken = rules.kraken2_contigs.output.out,
         abundance = rules.abundance.output.abundance,
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
