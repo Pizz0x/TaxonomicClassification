@@ -54,7 +54,7 @@ rule spades:
     shell:
         """
         rm -rf {params.path}tmp
-        metaspades.py -k 21,33,55,77,99,127 -1 {input.r1} -2 {input.r2} -o {params.path}tmp -t 16
+        metaspades.py -1 {input.r1} -2 {input.r2} -o {params.path}tmp -t 16
 
         cp {params.path}tmp/contigs.fasta {output.contigs}
         cp {params.path}tmp/contigs.paths {output.paths}
