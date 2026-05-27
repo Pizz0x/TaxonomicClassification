@@ -1,0 +1,12 @@
+abundance_path: "./data/abundance_results/"
+megahit_path: "./data/megahit_results/"
+spades_path: "./data/spades_results/"
+kraken_path: "./data/kraken_results/"
+metabat_path: "./data/metabat_results/"
+reads_1: "./data/input_reads/SRR5058924_1.fastq.gz"
+reads_2: "./data/input_reads/SRR5058924_2.fastq.gz"
+graphbin_path: "./data/graphBin_results/"
+kraken_db_path: "~/kraken_db"
+assembler: "spades"
+rank: "species"
+length_threshold: 0

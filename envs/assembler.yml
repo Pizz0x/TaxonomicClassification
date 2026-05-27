@@ -1,0 +1,24 @@
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  # Mapping & Assembly
+  - bowtie2=2.5.5
+  - samtools=1.21
+  - htslib=1.21
+  - megahit=1.2.9
+  - spades
+  - gfatools=0.5.5
+  # Classification
+  - kraken2
+  # Utilities
+  - blast=2.5.0
+  - sra-tools=2.10.0
+  - wget
+  - rsync
+  # Python Stack
+  - numpy=1.26.4  # Note: Numpy 2.0+ often breaks older Bio-tools
+  - scipy=1.13.1
+  - pytest

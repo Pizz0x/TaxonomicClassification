@@ -1,0 +1,9 @@
+.vscode
+data/abundance_results/*
+data/graphBin_results/*
+data/kraken_results/*
+data/megahit_results/*
+data/spades_results/*
+data/SRR5058924/*
+GraphBin2/
+.snakemake/
