@@ -161,6 +161,7 @@ rule preprocessor:
     input:
         kraken = rules.kraken2_contigs.output.out,
         abundance = rules.abundance.output.abundance,
+        db = config['kraken_db_path'],
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
         bins = f"{config['kraken_path']}output.csv"
@@ -168,18 +169,19 @@ rule preprocessor:
         rank = config["rank"],
         len = config["length_threshold"]
     shell:
-        "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler}"
+        "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --db-path {input.db}"
 
 rule preprocessor_reads:
     input:
         kraken = rules.kraken2_reads.output.out,
+        db = config['kraken_db_path']
     output:
         bins = f"{config['kraken_path']}output_reads.csv"
     params:
         rank = config["rank"],
         len = config["length_threshold"]
     shell:
-        "python3 ./scripts/processor.py --kraken {input.kraken} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads"
+        "python3 ./scripts/processor.py --kraken {input.kraken} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}"
 
 
 rule graphbin2:

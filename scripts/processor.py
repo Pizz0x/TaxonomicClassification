@@ -187,7 +187,7 @@ if __name__ == "__main__":
     NCBI_taxonomy = os.path.expanduser(f"{args.db_path}/nodes.dmp")
     validate_args(args, NCBI_taxonomy, parser)
     taxonomy_tree = load_NCBI(NCBI_taxonomy)
-    raw_dict = process_kraken(args.kraken, args.abundance, args.contigs, taxonomy_tree, args.rank, args.output, args.assembler, args.len, args.reads)
+    process_kraken(args.kraken, args.abundance, args.contigs, taxonomy_tree, args.rank, args.output, args.assembler, args.len, args.reads)
 
 
 #graphbin2 --assembler megahit --graph ./data/megahit_results/final_graph.gfa --contigs ./data/megahit_results/final_contigs.fa --binned ./data/kraken_results/output.csv --abundance ./data/abundance_results/abundance.tsv --output data/graphBin_results/
