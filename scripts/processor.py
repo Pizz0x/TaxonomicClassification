@@ -17,11 +17,11 @@ Required input formats:
 The script validates required files before processing and rejects invalid rank values early.
 """
 
-tax_set = set()
+
 # use taxonomy path form config file
 NCBI_taxonomy = os.path.expanduser(f"{config["kraken_db_path"]}/nodes.dmp")
-#abundance_path = './GraphBin2/tests/data/ESC_MEGAHIT/abundance.tsv'
-#contigs_path = './GraphBin2/tests/data/ESC_MEGAHIT/final.contigs.fa'
+
+
 rank_value = {
     'superkingdom': 10,
     'kingdom': 9,
@@ -57,31 +57,6 @@ def validate_args(args, parser):
     if args.rank not in VALID_RANKS:
         parser.error(f"Invalid rank '{args.rank}'. Valid ranks are: {', '.join(VALID_RANKS)}")
 
-
-# get kraken output and make it a pair of contig id and taxonomy id (only when the instance is correctly classified)
-def process_kraken(kraken_output, abundance_path, contigs_path, min_length, is_reads=False):
-    raw_dict = {}
-    abundance_set = load_abundance(abundance_path) if not is_reads else None
-    contigs_set = load_contigs(contigs_path, min_length) if not is_reads else None
-    with open(kraken_output, 'r') as i:
-        for line_num, line in enumerate(i, 1):
-
-            features = line.strip().split('\t')
-
-            status = features[0]
-            seqid = features[1] # identifier of the contig
-            try:
-                taxid = int(features[2])  # identifier of the taxonomy classification
-            except ValueError:
-                print(f"Warning: invalid taxonomy ID on line {line_num}: {features[2]}", file=sys.stderr)
-                continue
-
-            if status == 'C' and (is_reads or (seqid in abundance_set and seqid in contigs_set)): # only consider correctly classified instances and filter by abundance and contig length if not using read-level output
-                if taxid not in tax_set:
-                    tax_set.add(taxid)
-                raw_dict[seqid] = taxid
-    return raw_dict
-
 # we use the NCBI taxonomy database to get the generalization of the taxonomy classification, which is stored in the nodes.dmp file inside of the miniDB of Kraken
 def load_NCBI(NCBI_taxonomy):
     taxonomy_dict = {}
@@ -111,13 +86,18 @@ def load_contigs(contigs_path, min_length=0):
             line = line.rstrip('\n')
             if line.startswith('>'):
                 node = line[1:].split()[0] # get the identifier of the contig (without > and without the rest of the description)
-                len = int(node.split('_')[3])
+                try:
+                    len = int(node.split('_')[3])
+                except IndexError:
+                    len = 0
                 if len >= min_length:
                     contigs_set.add(node) # no character >
     return contigs_set
 
 # given a taxonomy identifier, climb the tree until the wanted generalization is obtained
 def get_parent(taxid, taxonomy_dict, rank):
+    if taxid not in taxonomy_dict:
+        return taxid
     current_id = taxid
     
     parent_id = taxonomy_dict[current_id][0]
@@ -125,37 +105,69 @@ def get_parent(taxid, taxonomy_dict, rank):
     current_rank = 'no rank' if current_rank not in rank_value.keys() else current_rank
     while rank_value[current_rank] < rank_value[rank] and current_id != parent_id:
         current_id = parent_id
+        if current_id not in taxonomy_dict:
+            break
         parent_id = taxonomy_dict[current_id][0]
         current_rank = taxonomy_dict[current_id][1]
         current_rank = 'no rank' if current_rank not in rank_value.keys() else current_rank
     return current_id
     
 
-# given the pair of contig_id and taxonomy_id , the dictionary that map each required tax_id to his parent and write each pair on the csv file
-# this is the funciton that creates the input for GraphBin2
-def process_raw(raw_dict, taxonomy_dict, rank, output_file, assembler):
-    bins = {}
-    count = 1
-    for taxid in raw_dict.values():
-        gen_taxid = get_parent(taxid, taxonomy_dict, rank)
-        if gen_taxid not in bins:
-            bins[gen_taxid] = count
-            count += 1
+def bin_format(bin_id, assembler):
+    if assembler == "megahit":
+        label = f"res.00{bin_id}]" if bin_id < 10 else f"res.0{bin_id}" if bin_id < 100 else f"res.{bin_id}"
+    elif assembler == "spades":
+        label = f"bin_{bin_id}"
+    else:
+        label = f"bin.{bin_id}"
+    return label
 
-    with open(output_file, 'w') as o:
+
+
+# get kraken output and make it a pair of contig id and taxonomy id (only when the instance is correctly classified)
+def process_kraken(kraken_bins, abundance, contigs, taxonomy_dict, rank, output_file, assembler, min_length, is_reads=False):
+
+    abundance_set = load_abundance(abundance) if not is_reads else None
+    contigs_set = load_contigs(contigs, min_length) if not is_reads else None
+
+    bins = {}
+    bin_counter = 1
+
+    parent_lookup = {}
+
+    with open(kraken_bins, 'r') as i, open(output_file, 'w') as o:
         writer = csv.writer(o)
-        count = 1
-        for seqid, taxid in raw_dict.items():
-            gen_taxid = get_parent(taxid, taxonomy_dict, rank)
-            if assembler == "megahit":
-                label = f"res.00{bins[gen_taxid]}" if bins[gen_taxid] < 10 else f"res.0{bins[gen_taxid]}" if bins[gen_taxid] < 100 else f"res.{bins[gen_taxid]}"
-            elif assembler == "spades":
-                label = f"bin_{bins[gen_taxid]}"
-            #label = f"bin.{bins[gen_taxid]}.fa"
-            #contig = f"contig_{count}"
-            #count +=1
-            writer.writerow([seqid, label])
-        
+
+        for line_num, line in enumerate(i, 1):
+
+            features = line.strip().split('\t')
+            if len(features) < 3:
+                continue
+            status = features[0]
+            seqid = features[1] # identifier of the contig
+            try:
+                taxid = int(features[2])  # identifier of the taxonomy classification
+            except ValueError:
+                print(f"Warning: invalid taxonomy ID on line {line_num}: {features[2]}", file=sys.stderr)
+                continue
+
+            if status == 'C' and (is_reads or (seqid in abundance_set and seqid in contigs_set)): # only consider correctly classified instances and filter by abundance and contig length if not using read-level output
+                if taxid in parent_lookup:
+                    gen_taxid = parent_lookup[taxid]
+                else:
+                    gen_taxid = get_parent(taxid, taxonomy_dict, rank)
+                    parent_lookup[taxid] = gen_taxid
+                
+                if gen_taxid not in bins:
+                    bins[gen_taxid] = bin_counter
+                    bin_counter += 1
+                
+                bin_number = bins[gen_taxid]
+                label = bin_format(bin_number, assembler)
+
+                writer.writerow([seqid, label])
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process Kraken2 output and create GraphBin2 binned input.")
@@ -176,9 +188,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     validate_args(args, parser)
-    raw_dict = process_kraken(args.kraken, args.abundance, args.contigs, args.len, args.reads)
-    taxonomy_dict = load_NCBI(NCBI_taxonomy)
-    process_raw(raw_dict, taxonomy_dict, args.rank, args.output, args.assembler)
+    taxonomy_tree = load_NCBI(NCBI_taxonomy)
+    raw_dict = process_kraken(args.kraken, args.abundance, args.contigs, taxonomy_tree, args.rank, args.output, args.assembler, args.len, args.reads)
 
 
 #graphbin2 --assembler megahit --graph ./data/megahit_results/final_graph.gfa --contigs ./data/megahit_results/final_contigs.fa --binned ./data/kraken_results/output.csv --abundance ./data/abundance_results/abundance.tsv --output data/graphBin_results/
