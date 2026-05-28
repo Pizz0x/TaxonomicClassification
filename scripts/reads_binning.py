@@ -20,7 +20,7 @@ def file_exists(path, desc):
     return path
 
 
-def assign_reads_with_filter(bam_input, csv_input, output_file):
+def assign_reads_with_filter(bam_input, csv_input, output_file, min_mapq):
     contig_to_tax = {}
     # create a dictionaty mapping each contigs to its taxonomy label
     with open(csv_input, "r") as f:
@@ -35,7 +35,7 @@ def assign_reads_with_filter(bam_input, csv_input, output_file):
         
         for read in bam:
             # check if read is mapped and has a mapping quality above the threshold
-            if not read.is_unmapped and read.mapping_quality >= 20:
+            if not read.is_unmapped and read.mapping_quality >= min_mapq:
                 if not (read.is_secondary or read.is_supplementary):
                     if read.reference_name in contig_to_tax:
                         label = contig_to_tax[read.reference_name]
