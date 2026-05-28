@@ -2,7 +2,6 @@ import csv
 import os
 import sys
 import argparse
-from networkx import config
 
 """
 This script is used to process Kraken2 output and obtain GraphBin2 binning input.
@@ -17,9 +16,6 @@ Required input formats:
 The script validates required files before processing and rejects invalid rank values early.
 """
 
-
-# use taxonomy path form config file
-NCBI_taxonomy = os.path.expanduser(f"{config["kraken_db_path"]}/nodes.dmp")
 
 
 rank_value = {
@@ -44,10 +40,10 @@ def file_exists(path, desc):
     return path
 
 
-def validate_args(args, parser):
+def validate_args(args, NCBI, parser):
     try:
         file_exists(args.kraken, 'Kraken output')
-        file_exists(NCBI_taxonomy, 'NCBI taxonomy nodes.dmp')
+        file_exists(NCBI, 'NCBI taxonomy nodes.dmp')
         if not args.reads:
             file_exists(args.abundance, 'Abundance file')
             file_exists(args.contigs, 'Contigs FASTA file')
@@ -185,9 +181,11 @@ if __name__ == "__main__":
                         help="Assembler type used for label formatting (megahit or spades).")
     parser.add_argument("--reads", action='store_true',
                         help="Use Kraken2 read-level output instead of contig-level output.")
+    parser.add_argument("--db-path", default="~/kraken_db", help="Path to your Kraken database node files.")
     args = parser.parse_args()
 
-    validate_args(args, parser)
+    NCBI_taxonomy = os.path.expanduser(f"{args.db_path}/nodes.dmp")
+    validate_args(args, NCBI_taxonomy, parser)
     taxonomy_tree = load_NCBI(NCBI_taxonomy)
     raw_dict = process_kraken(args.kraken, args.abundance, args.contigs, taxonomy_tree, args.rank, args.output, args.assembler, args.len, args.reads)
 
