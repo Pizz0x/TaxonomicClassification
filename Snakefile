@@ -88,7 +88,11 @@ rule kraken2_contigs:
         out = f"{config['kraken_path']}kraken_output.txt",
         report = f"{config['kraken_path']}kraken_report.txt"
     params:
+<<<<<<< HEAD
         db = config['kraken_db_path']
+=======
+        db = "~/kraken_db"
+>>>>>>> df16b5496842f1b4ed9efec35bddacaf51103357
     threads: 4
     conda:
         "envs/assembler.yml"
@@ -104,7 +108,11 @@ rule kraken2_reads:
         out = f"{config['kraken_path']}kraken_reads_output.txt",
         report = f"{config['kraken_path']}kraken_reads_report.txt"
     params:
+<<<<<<< HEAD
         db = config['kraken_db_path'],
+=======
+        db = "~/kraken_db",
+>>>>>>> df16b5496842f1b4ed9efec35bddacaf51103357
         # Aggiungiamo un check automatico per la compressione
         gzip = "--gzip-compressed" if config['reads_1'].endswith(".gz") else ""
     threads: 4
@@ -161,7 +169,10 @@ rule preprocessor:
     input:
         kraken = rules.kraken2_contigs.output.out,
         abundance = rules.abundance.output.abundance,
+<<<<<<< HEAD
         db = config['kraken_db_path'],
+=======
+>>>>>>> df16b5496842f1b4ed9efec35bddacaf51103357
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
         bins = f"{config['kraken_path']}output.csv"
@@ -169,6 +180,7 @@ rule preprocessor:
         rank = config["rank"],
         len = config["length_threshold"]
     shell:
+<<<<<<< HEAD
         "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --db-path {input.db}"
 
 rule preprocessor_reads:
@@ -182,6 +194,9 @@ rule preprocessor_reads:
         len = config["length_threshold"]
     shell:
         "python3 ./scripts/processor.py --kraken {input.kraken} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}"
+=======
+        "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler}"
+>>>>>>> df16b5496842f1b4ed9efec35bddacaf51103357
 
 
 rule graphbin2:
@@ -203,5 +218,9 @@ rule graphbin2:
     shell:
         """
         graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/ {params.paths_flag}
+<<<<<<< HEAD
         python3 ./scripts/reads_binning.py --alignment {input.alignment} --bin {output.graphbin_csv} --o {output.results} --minmapq 10
+=======
+        python3 ./scripts/reads_binning.py --alignment {input.alignment} --bin {output.graphbin_csv} --o {output.results}
+>>>>>>> df16b5496842f1b4ed9efec35bddacaf51103357
         """
