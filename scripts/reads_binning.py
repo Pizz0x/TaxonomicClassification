@@ -49,10 +49,10 @@ if __name__ == "__main__":
                         help="CSV file mapping contig IDs to bin labels. Format: contig_id,label")
     parser.add_argument("--o", required=True,
                         help="Output CSV file containing read_id,taxonomy,mapq")
-    parser.add_argument("--min-mapq", type=int, default=0,
+    parser.add_argument("--minmapq", type=int, default=0,
                         help="Minimum mapping quality to include a read.")
     args = parser.parse_args()
-    assign_reads_with_filter(args.alignment, args.bin, args.o, args.min_mapq)
+    assign_reads_with_filter(args.alignment, args.bin, args.o, args.minmapq)
 
 
 

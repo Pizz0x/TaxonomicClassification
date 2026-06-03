@@ -5,3 +5,4 @@ channels:
 dependencies:
   - graphbin2
   - python=3.10
+  - pysam

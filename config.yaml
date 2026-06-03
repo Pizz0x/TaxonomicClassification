@@ -9,4 +9,5 @@ graphbin_path: "./data/graphBin_results/"
 kraken_db_path: "~/kraken_db"
 assembler: "spades"
 rank: "species"
-length_threshold: 
+length_threshold: 0
+benchmark_path: "./data/benchmark_results/"

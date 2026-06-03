@@ -1,10 +1,11 @@
 configfile: "config.yaml"
+config['kraken_db_path'] = os.path.expanduser(config['kraken_db_path'])
 assembler = config['assembler'].lower()
 
 rule all:
     input:
-        "data/graphBin_results/graphbin2_output.csv"
-
+        config['graphbin_path'] + "graphbin2_output.csv",
+        config['benchmark_path'] + "evaluation_report.txt"
 
 rule megahit:
     input:
@@ -135,6 +136,7 @@ rule abundance:
         "envs/assembler.yml"
     shell:
         """
+        mkdir -p {config[abundance_path]}tmp
         bowtie2-build {input.contigs} {params.index}
         bowtie2 -x {params.index} -1 {input.r1} -2 {input.r2} | samtools view -bS - | samtools sort -o {output.alignment} -
         samtools index {output.alignment}
@@ -204,4 +206,18 @@ rule graphbin2:
         """
         graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/ {params.paths_flag}
         python3 ./scripts/reads_binning.py --alignment {input.alignment} --bin {output.graphbin_csv} --o {output.results} --minmapq 10
+        """
+
+rule benchmark:
+    input:
+        kraken = rules.kraken2_contigs.output.out,
+        graphbin = rules.graphbin2.output.graphbin_csv,
+        abundance = rules.abundance.output.abundance,
+        truth = "./data/mock_truth.tsv"
+    output:
+        report = f"{config['benchmark_path']}evaluation_report.txt"
+    shell:
+        """
+        mkdir -p data/benchmark_results/
+        python3 ./scripts/evaluate_benchmark.py --kraken {input.kraken} --graphbin {input.graphbin} --abundance {input.abundance} --truth {input.truth} > {output.report}
         """
