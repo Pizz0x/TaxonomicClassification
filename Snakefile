@@ -213,11 +213,19 @@ rule benchmark:
         kraken = rules.kraken2_contigs.output.out,
         graphbin = rules.graphbin2.output.graphbin_csv,
         abundance = rules.abundance.output.abundance,
-        truth = "./data/mock_truth.tsv"
+        truth = "./data/mock_truth.tsv",
+        kraken_reads= rules.kraken2_reads.output.out,
+        graphbin_reads=rules.graphbin2.output.results
     output:
         report = f"{config['benchmark_path']}evaluation_report.txt"
     shell:
         """
         mkdir -p data/benchmark_results/
-        python3 ./scripts/evaluate_benchmark.py --kraken {input.kraken} --graphbin {input.graphbin} --abundance {input.abundance} --truth {input.truth} > {output.report}
+        python3 ./scripts/evaluate_benchmark.py \
+            --kraken {input.kraken} \
+            --graphbin {input.graphbin} \
+            --abundance {input.abundance} \
+            --truth {input.truth} \
+            --kraken_reads {input.kraken_reads} \
+            --graphbin_reads {input.graphbin_reads} > {output.report}
         """
