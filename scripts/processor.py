@@ -121,7 +121,7 @@ def bin_format(bin_id, assembler):
 
 
 # get kraken output and make it a pair of contig id and taxonomy id (only when the instance is correctly classified)
-def process_kraken(kraken_bins, abundance, contigs, taxonomy_dict, rank, output_file, assembler, min_length, is_reads=False):
+def process_kraken(kraken_bins, abundance, contigs, taxonomy_dict, rank, output_file, mapping_file, assembler, min_length, is_reads=False):
 
     abundance_set = load_abundance(abundance) if not is_reads else None
     contigs_set = load_contigs(contigs, min_length) if not is_reads else None
@@ -163,6 +163,13 @@ def process_kraken(kraken_bins, abundance, contigs, taxonomy_dict, rank, output_
 
                 writer.writerow([seqid, label])
 
+    with open(mapping_file, 'w') as m:
+        map_writer = csv.writer(m)
+
+        for taxid, bin_number in bins.items():
+            label = bin_format(bin_number, assembler)
+            map_writer.writerow([label, taxid])
+
 
 
 if __name__ == "__main__":
@@ -182,12 +189,14 @@ if __name__ == "__main__":
     parser.add_argument("--reads", action='store_true',
                         help="Use Kraken2 read-level output instead of contig-level output.")
     parser.add_argument("--db-path", default="~/kraken_db", help="Path to your Kraken database node files.")
+    parser.add_argument("--mapping", default='./data/kraken_results/mapping.csv',
+                        help="CSV file to map bin labels back to taxonomy IDs")
     args = parser.parse_args()
 
     NCBI_taxonomy = os.path.expanduser(f"{args.db_path}/nodes.dmp")
     validate_args(args, NCBI_taxonomy, parser)
     taxonomy_tree = load_NCBI(NCBI_taxonomy)
-    process_kraken(args.kraken, args.abundance, args.contigs, taxonomy_tree, args.rank, args.output, args.assembler, args.len, args.reads)
+    process_kraken(args.kraken, args.abundance, args.contigs, taxonomy_tree, args.rank, args.output, args.mapping, args.assembler, args.len, args.reads)
 
 
 #graphbin2 --assembler megahit --graph ./data/megahit_results/final_graph.gfa --contigs ./data/megahit_results/final_contigs.fa --binned ./data/kraken_results/output.csv --abundance ./data/abundance_results/abundance.tsv --output data/graphBin_results/

@@ -1,16 +1,18 @@
 configfile: "config.yaml"
-config['kraken_db_path'] = os.path.expanduser(config['kraken_db_path'])
+#config['kraken_db_path'] = os.path.expanduser(config['kraken_db_path'])
 assembler = config['assembler'].lower()
 
 rule all:
     input:
-        config['graphbin_path'] + "graphbin2_output.csv",
-        config['benchmark_path'] + "evaluation_report.txt"
+        # config['graphbin_path'] + "graphbin2_output.csv",
+        # config['benchmark_path'] + "evaluation_report.txt",
+        config['benchmark_path'] + "binning_report.txt"
 
 rule megahit:
     input:
-        r1 = config["reads_1"],
-        r2 = config["reads_2"]
+        # r1 = config["reads_1"],
+        # r2 = config["reads_2"]
+        reads = config['cami_reads']
     params:
         path = config["megahit_path"]
     output:
@@ -23,8 +25,8 @@ rule megahit:
         """
         rm -rf {params.path}tmp
         
-
-        megahit -1 {input.r1} -2 {input.r2} -o {params.path}tmp
+        # megahit -1 {input.r1} -2 {input.r2} -o {params.path}tmp
+        megahit -r {input.reads} -o {params.path}tmp
 
         MAX_K=$(ls {params.path}tmp/intermediate_contigs/k*.final.contigs.fa | sed 's/.*k//;s/.final.contigs.fa//' | sort -n | tail -n 1)
 
@@ -42,8 +44,9 @@ rule megahit:
 
 rule spades:
     input:
-        r1 = config['reads_1'],
-        r2 = config['reads_2']
+        # r1 = config['reads_1'],
+        # r2 = config['reads_2']
+        read = config['cami_reads']
     params:
         path = config["spades_path"]
     output:
@@ -86,10 +89,10 @@ rule kraken2_contigs:
     input:
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
-        out = f"{config['kraken_path']}kraken_output.txt",
-        report = f"{config['kraken_path']}kraken_report.txt"
+        out = f"{config['kraken_path']}kraken_mini/kraken_output.txt",
+        report = f"{config['kraken_path']}kraken_mini/kraken_report.txt"
     params:
-        db = config['kraken_db_path']
+        db = config['kraken_db_mini']
     threads: 4
     conda:
         "envs/assembler.yml"
@@ -98,34 +101,35 @@ rule kraken2_contigs:
 
 rule kraken2_reads:
     input:
-        #    contigs = lambda wildcards: get_assembler(wildcards)['contigs']
-        r1 = config['reads_1'],
-        r2 = config['reads_2']
+        # contigs = lambda wildcards: get_assembler(wildcards)['contigs']
+        # r1 = config['reads_1'],
+        # r2 = config['reads_2']
+        reads = config['cami_reads']
     output:
-        out = f"{config['kraken_path']}kraken_reads_output.txt",
-        report = f"{config['kraken_path']}kraken_reads_report.txt"
+        out = f"{config['kraken_path']}kraken_standard/kraken_reads_output.txt",
+        report = f"{config['kraken_path']}kraken_standard/kraken_reads_report.txt"
     params:
-        db = config['kraken_db_path'],
+        db = config['kraken_db_standard'],
         # Aggiungiamo un check automatico per la compressione
-        gzip = "--gzip-compressed" if config['reads_1'].endswith(".gz") else ""
+        gzip = "--gzip-compressed" if config['cami_reads'].endswith(".gz") else ""
     threads: 4
     conda:
         "envs/assembler.yml"
     shell:
         """
         kraken2 --db {params.db} \
-        --paired \
         {params.gzip} \
         --fastq-input \
         --report {output.report} \
         --threads {threads} \
-        {input.r1} {input.r2} > {output.out}
+        {input.reads} > {output.out}
         """
 
 rule abundance:
     input:
-        r1 = config["reads_1"],
-        r2 = config["reads_2"],
+        # r1 = config["reads_1"],
+        # r2 = config["reads_2"],
+        reads = config['cami_reads'],
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     params:
         index = f"{config['abundance_path']}tmp/contigs_index"
@@ -138,7 +142,8 @@ rule abundance:
         """
         mkdir -p {config[abundance_path]}tmp
         bowtie2-build {input.contigs} {params.index}
-        bowtie2 -x {params.index} -1 {input.r1} -2 {input.r2} | samtools view -bS - | samtools sort -o {output.alignment} -
+        # bowtie2 -x {params.index} -1 {input.r1} -2 {input.r2} | samtools view -bS - | samtools sort -o {output.alignment} -
+        bowtie2 -x {params.index} -U {input.reads} | samtools view -bS - | samtools sort -o {output.alignment} -
         samtools index {output.alignment}
         samtools idxstats {output.alignment} | grep -v "*" |cut -f 1,3 > {output.abundance}
         """
@@ -163,27 +168,29 @@ rule preprocessor:
     input:
         kraken = rules.kraken2_contigs.output.out,
         abundance = rules.abundance.output.abundance,
-        db = config['kraken_db_path'],
+        #db = config['kraken_db_path'],
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     output:
-        bins = f"{config['kraken_path']}output.csv"
+        bins = f"{config['kraken_path']}kraken_mini/output.csv",
+        mapping = f"{config['kraken_path']}kraken_mini/bin_taxid_mapping.csv"
     params:
         rank = config["rank"],
-        len = config["length_threshold"]
+        len = config["length_threshold"],
+        db= config['kraken_db_mini']
     shell:
-        "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --db-path {input.db}"
+        "python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --mapping {output.mapping} --rank {params.rank} --len {params.len} --assembler {assembler} --db-path {params.db}"
 
-rule preprocessor_reads:
-    input:
-        kraken = rules.kraken2_reads.output.out,
-        db = config['kraken_db_path']
-    output:
-        bins = f"{config['kraken_path']}output_reads.csv"
-    params:
-        rank = config["rank"],
-        len = config["length_threshold"]
-    shell:
-        "python3 ./scripts/processor.py --kraken {input.kraken} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}"
+# rule preprocessor_reads:
+#     input:
+#         kraken = rules.kraken2_reads.output.out,
+#         db = config['kraken_db_path']
+#     output:
+#         bins = f"{config['kraken_path']}output_reads.csv"
+#     params:
+#         rank = config["rank"],
+#         len = config["length_threshold"]
+#     shell:
+#         "python3 ./scripts/processor.py --kraken {input.kraken} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}"
 
 
 rule graphbin2:
@@ -196,36 +203,53 @@ rule graphbin2:
         # an alternative is to use metabat2 bins as input
         bins = rules.preprocessor.output.bins
     output:
-        graphbin_csv = config['graphbin_path'] + "graphbin2_output.csv",
-        results = config['graphbin_path'] + "results.csv"
+        graphbin_csv = config['graphbin_path'] + "mini/graphbin2_output.csv",
+        results = config['graphbin_path'] + "mini/results.csv"
     conda:
         "envs/graphbin2.yml"
     params:
         paths_flag = lambda wildcards, input: f"--paths {input.paths}" if assembler=='spades' else ""
     shell:
         """
-        graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/ {params.paths_flag}
+        graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/mini/ {params.paths_flag}
         python3 ./scripts/reads_binning.py --alignment {input.alignment} --bin {output.graphbin_csv} --o {output.results} --minmapq 10
         """
 
-rule benchmark:
+# rule benchmark:
+#     input:
+#         kraken = rules.kraken2_contigs.output.out,
+#         graphbin = rules.graphbin2.output.graphbin_csv,
+#         abundance = rules.abundance.output.abundance,
+#         truth = "./data/mock_truth.tsv",
+#         kraken_reads= rules.kraken2_reads.output.out,
+#         graphbin_reads=rules.graphbin2.output.results
+#     output:
+#         report = f"{config['benchmark_path']}evaluation_report_{db_size}.txt"
+#     shell:
+#         """
+#         mkdir -p data/benchmark_results/
+#         python3 ./scripts/evaluate_benchmark.py \
+#             --kraken {input.kraken} \
+#             --graphbin {input.graphbin} \
+#             --abundance {input.abundance} \
+#             --truth {input.truth} \
+#             --kraken_reads {input.kraken_reads} \
+#             --graphbin_reads {input.graphbin_reads} > {output.report}
+#         """
+
+rule benchmark_binning:
     input:
-        kraken = rules.kraken2_contigs.output.out,
-        graphbin = rules.graphbin2.output.graphbin_csv,
-        abundance = rules.abundance.output.abundance,
-        truth = "./data/mock_truth.tsv",
-        kraken_reads= rules.kraken2_reads.output.out,
-        graphbin_reads=rules.graphbin2.output.results
+        truth = config['truth_binning'],
+        kraken_standard= rules.kraken2_reads.output.out,
+        mapping= rules.preprocessor.output.mapping,
+        graphbin_reads= rules.graphbin2.output.results
     output:
-        report = f"{config['benchmark_path']}evaluation_report.txt"
+        report= config['benchmark_path'] + "binning_report.txt"
     shell:
         """
-        mkdir -p data/benchmark_results/
-        python3 ./scripts/evaluate_benchmark.py \
-            --kraken {input.kraken} \
-            --graphbin {input.graphbin} \
-            --abundance {input.abundance} \
+        python3 scripts/evaluate_binning.py \
             --truth {input.truth} \
-            --kraken_reads {input.kraken_reads} \
-            --graphbin_reads {input.graphbin_reads} > {output.report}
+            --kraken-reads {input.kraken_standard} \
+            --graphbin-reads {input.graphbin_reads} \
+            --mapping {input.mapping} > {output.report}
         """
