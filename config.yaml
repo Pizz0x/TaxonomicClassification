@@ -7,6 +7,7 @@ graphbin_path: "./data/graphBin_results/"
 assembler: "spades"
 rank: "species"
 length_threshold: 0
+threads:128
 benchmark_path: "./data/benchmark_results/"
 
 cami_reads: "../databases/cami_dataset/CAMI_low/RL_S001__insert_270.fq.gz"

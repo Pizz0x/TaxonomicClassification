@@ -90,7 +90,7 @@ rule kraken2_contigs:
         report = f"{config['kraken_path']}kraken_mini/kraken_report.txt"
     params:
         db = config['kraken_db_mini']
-    threads: 4
+    threads: config['threads']
     conda:
         "envs/assembler.yml"
     shell:
@@ -111,7 +111,7 @@ rule kraken2_reads:
         db = config['kraken_db_standard'],
         # Aggiungiamo un check automatico per la compressione
         gzip = "--gzip-compressed" if config['cami_reads'].endswith(".gz") else ""
-    threads: 4
+    threads: config['threads']
     conda:
         "envs/assembler.yml"
     shell:
@@ -139,7 +139,7 @@ rule kraken2_mini:
         db = config['kraken_db_mini'],
         # Aggiungiamo un check automatico per la compressione
         gzip = "--gzip-compressed" if config['cami_reads'].endswith(".gz") else ""
-    threads: 4
+    threads: config['threads']
     conda:
         "envs/assembler.yml"
     shell:
@@ -277,6 +277,7 @@ rule benchmark_binning:
     input:
         truth = config['truth_binning'],
         kraken_standard= rules.kraken2_reads.output.out,
+        kraken_mini = rules.kraken2_mini.output.out,
         mapping= rules.preprocessor.output.mapping,
         graphbin_reads= rules.graphbin2.output.results
     output:
@@ -287,6 +288,7 @@ rule benchmark_binning:
         python3 scripts/evaluate_binning.py \
             --truth {input.truth} \
             --kraken-reads {input.kraken_standard} \
+            --kraken-mini {input.kraken_mini} \
             --graphbin-reads {input.graphbin_reads} \
             --mapping {input.mapping} > {output.report}
         """
