@@ -24,16 +24,13 @@ rule megahit:
     shell:
         """
         rm -rf {params.path}tmp {output.contigs} {output.input_contigs} {output.graph}
-        
-        # in case of 2 different reads:  megahit -1 {input.r1} -2 {input.r2} -o {params.path}tmp
+    
         megahit --12 {input.reads} -o {params.path}tmp
 
         MAX_K=$(ls {params.path}tmp/intermediate_contigs/k*.final.contigs.fa | sed 's/.*k//;s/.final.contigs.fa//' | sort -n | tail -n 1)
 
         megahit_toolkit contig2fastg $MAX_K {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa > {params.path}tmp/tmp_graph.fastg
         python3 scripts/fastg_to_gfa.py --input {params.path}tmp/tmp_graph.fastg --output {output.graph}
-
-        # megahit_core export-gfa ${{MAX_K_DIR}}/$(basename ${{MAX_K_DIR}}).contigs.fa.gz > {output.graph}
 
         cp {params.path}tmp/final.contigs.fa {output.contigs}
         cp {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa {output.input_contigs}
@@ -58,7 +55,6 @@ rule spades:
     shell:
         """
         rm -rf {params.path}tmp {output.contigs} {output.paths} {output.graph}
-        # in case of 2 different reads:  metaspades.py -1 {input.r1} -2 {input.r2} -o {params.path}tmp -t 16
         metaspades.py --12 {input.read} -o {params.path}tmp -t 16
 
         cp {params.path}tmp/contigs.fasta {output.contigs}
@@ -130,6 +126,34 @@ rule kraken2_reads:
         {input.reads} > {output.out}
         """
 
+rule kraken2_mini:
+    input:
+        # contigs = lambda wildcards: get_assembler(wildcards)['contigs']
+        # r1 = config['reads_1'],
+        # r2 = config['reads_2']
+        reads = config['cami_reads']
+    output:
+        out = f"{config['kraken_path']}kraken_standard/kraken_mini_output.txt",
+        report = f"{config['kraken_path']}kraken_standard/kraken_mini_report.txt"
+    params:
+        db = config['kraken_db_mini'],
+        # Aggiungiamo un check automatico per la compressione
+        gzip = "--gzip-compressed" if config['cami_reads'].endswith(".gz") else ""
+    threads: 4
+    conda:
+        "envs/assembler.yml"
+    shell:
+        """
+        rm -f {output.out} {output.report}
+        kraken2 --db {params.db} \
+        {params.gzip} \
+        --fastq-input \
+        --interleaved \
+        --report {output.report} \
+        --threads {threads} \
+        {input.reads} > {output.out}
+        """
+
 rule abundance:
     input:
         # r1 = config["reads_1"],
@@ -149,7 +173,6 @@ rule abundance:
         rm -rf {params.tmp_dir} {output.alignment} {output.alignment}.bai {output.abundance}
         mkdir -p {config[abundance_path]}tmp
         bowtie2-build {input.contigs} {params.index}
-        # bowtie2 -x {params.index} -1 {input.r1} -2 {input.r2} | samtools view -bS - | samtools sort -o {output.alignment} -
         bowtie2 -x {params.index} --interleaved {input.reads} | samtools view -bS - | samtools sort -o {output.alignment} -
         samtools index {output.alignment}
         samtools idxstats {output.alignment} | grep -v "*" |cut -f 1,3 > {output.abundance}
