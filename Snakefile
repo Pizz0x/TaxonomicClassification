@@ -213,17 +213,22 @@ rule preprocessor:
         python3 ./scripts/processor.py --kraken {input.kraken} --abundance {input.abundance} --contigs {input.contigs} --output {output.bins} --mapping {output.mapping} --rank {params.rank} --len {params.len} --assembler {assembler} --db-path {params.db}
         """
 
-# rule preprocessor_reads:
-#     input:
-#         kraken = rules.kraken2_reads.output.out,
-#         db = config['kraken_db_path']
-#     output:
-#         bins = f"{config['kraken_path']}output_reads.csv"
-#     params:
-#         rank = config["rank"],
-#         len = config["length_threshold"]
-#     shell:
-#         "python3 ./scripts/processor.py --kraken {input.kraken} --output {output.bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}"
+rule preprocessor_reads:
+    input:
+        kraken_reads = rules.kraken2_reads.output.out,
+        kraken_mini = rules.kraken2_mini.output.out,
+        db = config['kraken_db_path']
+    output:
+        standard_bins = f"{config['kraken_path']}output_kraken_reads.csv",
+        mini_bins = f"{config['kraken_path']}output_kraken_mini.csv"
+    params:
+        rank = config["rank"],
+        len = config["length_threshold"]
+    shell:
+        """
+        python3 ./scripts/processor.py --kraken {input.kraken_reads} --output {output.standard_bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}
+        python3 ./scripts/processor.py --kraken {input.kraken_mini} --output {output.mini_bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}
+        """
 
 
 rule graphbin2:
@@ -276,8 +281,8 @@ rule graphbin2:
 rule benchmark_binning:
     input:
         truth = config['truth_binning'],
-        kraken_standard= rules.kraken2_reads.output.out,
-        kraken_mini = rules.kraken2_mini.output.out,
+        kraken_standard= rules.preprocessor_reads.output.standard_bins,
+        kraken_mini = rules.preprocessor_reads.output.mini_bins,
         mapping= rules.preprocessor.output.mapping,
         graphbin_reads= rules.graphbin2.output.results
     output:

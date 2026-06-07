@@ -159,7 +159,8 @@ def process_kraken(kraken_bins, abundance, contigs, taxonomy_dict, rank, output_
                     bin_counter += 1
                 
                 bin_number = bins[gen_taxid]
-                label = bin_format(bin_number, assembler)
+
+                label = bin_format(bin_number, assembler) if not is_reads else str(gen_taxid)
 
                 writer.writerow([seqid, label])
 
