@@ -25,8 +25,8 @@ rule megahit:
         """
         rm -rf {params.path}tmp
         
-        # megahit -1 {input.r1} -2 {input.r2} -o {params.path}tmp
-        megahit -r {input.reads} -o {params.path}tmp
+        # in case of 2 different reads:  megahit -1 {input.r1} -2 {input.r2} -o {params.path}tmp
+        megahit --12 {input.reads} -o {params.path}tmp
 
         MAX_K=$(ls {params.path}tmp/intermediate_contigs/k*.final.contigs.fa | sed 's/.*k//;s/.final.contigs.fa//' | sort -n | tail -n 1)
 
@@ -58,7 +58,8 @@ rule spades:
     shell:
         """
         rm -rf {params.path}tmp
-        metaspades.py -1 {input.r1} -2 {input.r2} -o {params.path}tmp -t 16
+        # in case of 2 different reads:  metaspades.py -1 {input.r1} -2 {input.r2} -o {params.path}tmp -t 16
+        metaspades.py --12 {input.read} -o {params.path}tmp -t 16
 
         cp {params.path}tmp/contigs.fasta {output.contigs}
         cp {params.path}tmp/contigs.paths {output.paths}
@@ -120,6 +121,7 @@ rule kraken2_reads:
         kraken2 --db {params.db} \
         {params.gzip} \
         --fastq-input \
+        --interleaved \
         --report {output.report} \
         --threads {threads} \
         {input.reads} > {output.out}
@@ -143,7 +145,7 @@ rule abundance:
         mkdir -p {config[abundance_path]}tmp
         bowtie2-build {input.contigs} {params.index}
         # bowtie2 -x {params.index} -1 {input.r1} -2 {input.r2} | samtools view -bS - | samtools sort -o {output.alignment} -
-        bowtie2 -x {params.index} -U {input.reads} | samtools view -bS - | samtools sort -o {output.alignment} -
+        bowtie2 -x {params.index} --interleaved {input.reads} | samtools view -bS - | samtools sort -o {output.alignment} -
         samtools index {output.alignment}
         samtools idxstats {output.alignment} | grep -v "*" |cut -f 1,3 > {output.abundance}
         """
