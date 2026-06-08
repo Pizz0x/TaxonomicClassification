@@ -54,6 +54,19 @@ def evaluate(predictions, truth):
 
     return precision, recall, f1, tp, fp, fn
 
+def compute_recovery(kraken_preds, graphbin_preds, truth):
+    """Compute how many reads not classified by Kraken are recovered by GraphBin2"""
+    kraken_unclassified = set(truth.keys()) - set(kraken_preds.keys())
+    recovered_total = 0
+    recovered_correct = 0
+
+    for read_id in kraken_unclassified:
+        if read_id in truth:
+            recovered_total += 1
+            if graphbin_preds[read_id] == truth[read_id]:
+                recovered_correct += 1
+
+    return len(kraken_unclassified), recovered_total, recovered_correct
 
 def analyze_results(kraken_reads, graphbin_reads, truth_file, mapping_file):
     truth = load_cami_truth(truth_file)
@@ -62,7 +75,7 @@ def analyze_results(kraken_reads, graphbin_reads, truth_file, mapping_file):
     kraken_preds = {}
     with open(kraken_reads, 'r') as f:
         for line in f:
-            cols = line.strip().split('\t')
+            cols = line.strip().split()
             if len(cols) >= 3 and cols[0] == 'C':
                 kraken_preds[cols[1]] = cols[2]
 
@@ -77,14 +90,28 @@ def analyze_results(kraken_reads, graphbin_reads, truth_file, mapping_file):
     kp, kr, kf1, ktp, kfp, kfn = evaluate(kraken_preds, truth)
     gp, gr, gf1, gtp, gfp, gfn = evaluate(graphbin_preds, truth)
 
-    print("=== PURE KRAKEN ===")
+    kraken_unclassified, recovered_tot, recovered_corr = compute_recovery(kraken_preds, graphbin_preds, truth)
+
+    print("=== KRAKEN STANDARD ===")
     print(f"Precision: {kp} | Recall: {kr} | F1-Score: {kf1}")
     print(f"True Positives: {ktp} | True Negatives: {kfn}")
 
-    print("=== KRAKEN + GRAPHBIN ===")
+    print("=== KRAKEN MINI + GRAPHBIN ===")
     print(f"Precision: {gp} | Recall: {gr} | F1-Score: {gf1}")
     print(f"True positives: {gtp} | True Negatives: {gfn}")
 
+    print(f"Total reads in the Gold Standard: {len(truth)}")
+    print(f"Reads unclassified by Kraken: {kraken_unclassified}")
+
+    if kraken_unclassified > 0:
+        perc_tot = recovered_tot / kraken_unclassified * 100
+        perc_corr = recovered_corr / kraken_unclassified * 100
+        print(f"GraphBin2 assigned a bin to {recovered_tot} reads ({perc_tot:.2f}% of reads unclassified by Kraken)")
+        print(f"GraphBin2 assigned a correct bin to {recovered_corr} reads ({perc_corr:.2f}% of reads unclassified by Kraken)")
+
+        if recovered_tot > 0:
+            recovery_precision = perc_corr / recovered_tot
+            print(f"Precision of recovery on unclassified reads: {recovery_precision:.2f}%")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate reads binning by using Gold Standard CAMI")

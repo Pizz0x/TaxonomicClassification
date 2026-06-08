@@ -50,12 +50,13 @@ rule spades:
         contigs = config['spades_path'] + "contigs.fasta",
         paths = config['spades_path'] + 'contigs.paths',
         graph = config['spades_path'] + 'assembly_graph_with_scaffolds.gfa'
+    threads: config['threads']
     conda:
         "envs/assembler.yml"
     shell:
         """
         rm -rf {params.path}tmp {output.contigs} {output.paths} {output.graph}
-        metaspades.py --12 {input.read} -o {params.path}tmp -t 16
+        metaspades.py --12 {input.read} -o {params.path}tmp -t {threads}
 
         cp {params.path}tmp/contigs.fasta {output.contigs}
         cp {params.path}tmp/contigs.paths {output.paths}
@@ -166,6 +167,7 @@ rule abundance:
     output:
         alignment = f"{config['abundance_path']}alignment.bam",
         abundance = f"{config['abundance_path']}abundance.tsv"
+    threads: config['threads']
     conda:
         "envs/assembler.yml"
     shell:
@@ -173,7 +175,7 @@ rule abundance:
         rm -rf {params.tmp_dir} {output.alignment} {output.alignment}.bai {output.abundance}
         mkdir -p {config[abundance_path]}tmp
         bowtie2-build {input.contigs} {params.index}
-        bowtie2 -x {params.index} --interleaved {input.reads} | samtools view -bS - | samtools sort -o {output.alignment} -
+        bowtie2 -p {threads} -x {params.index} --interleaved {input.reads} | samtools view -bS - | samtools sort -@ {threads} -o {output.alignment} -
         samtools index {output.alignment}
         samtools idxstats {output.alignment} | grep -v "*" |cut -f 1,3 > {output.abundance}
         """
