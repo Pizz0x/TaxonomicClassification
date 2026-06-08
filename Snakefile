@@ -56,7 +56,7 @@ rule spades:
     shell:
         """
         rm -rf {params.path}tmp {output.contigs} {output.paths} {output.graph}
-        metaspades.py --12 {input.read} -o {params.path}tmp -t {threads}
+        metaspades.py --12 {input.read} -o {params.path}tmp -t {threads} -m 115
 
         cp {params.path}tmp/contigs.fasta {output.contigs}
         cp {params.path}tmp/contigs.paths {output.paths}
