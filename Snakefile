@@ -51,12 +51,14 @@ rule spades:
         paths = config['spades_path'] + 'contigs.paths',
         graph = config['spades_path'] + 'assembly_graph_with_scaffolds.gfa'
     threads: config['threads']
+    benchmark:
+        config['benchmark_path'] + "spades.tsv"
     conda:
         "envs/assembler.yml"
     shell:
         """
         rm -rf {params.path}tmp {output.contigs} {output.paths} {output.graph}
-        metaspades.py --12 {input.read} -o {params.path}tmp -t {threads} -m 115
+        metaspades.py --12 {input.read} -o {params.path}tmp -t {threads} -m 90
 
         cp {params.path}tmp/contigs.fasta {output.contigs}
         cp {params.path}tmp/contigs.paths {output.paths}
@@ -92,6 +94,8 @@ rule kraken2_contigs:
     params:
         db = config['kraken_db_mini']
     threads: config['threads']
+    benchmark:
+        f"{config['benchmark_path']}kraken_mini.tsv"
     conda:
         "envs/assembler.yml"
     shell:
@@ -113,6 +117,8 @@ rule kraken2_reads:
         # Aggiungiamo un check automatico per la compressione
         gzip = "--gzip-compressed" if config['cami_reads'].endswith(".gz") else ""
     threads: config['threads']
+    benchmark:
+        config['benchmark_path'] + "kraken_standard_reads.tsv"
     conda:
         "envs/assembler.yml"
     shell:
@@ -170,6 +176,8 @@ rule abundance:
     threads: config['threads']
     conda:
         "envs/assembler.yml"
+    benchmark:
+        f"{config['benchmark_path']}bowtie.tsv"
     shell:
         """
         rm -rf {params.tmp_dir} {output.alignment} {output.alignment}.bai {output.abundance}
@@ -248,6 +256,8 @@ rule graphbin2:
         results = config['graphbin_path'] + "mini/results.csv"
     conda:
         "envs/graphbin2.yml"
+    benchmark:
+        f"{config['benchmark_path']}graphbin2.tsv"
     params:
         paths_flag = lambda wildcards, input: f"--paths {input.paths}" if assembler=='spades' else "",
         out_dir = config['graphbin_path'] + "mini"
