@@ -140,8 +140,8 @@ rule kraken2_mini:
         # r2 = config['reads_2']
         reads = config['cami_reads']
     output:
-        out = f"{config['kraken_path']}kraken_standard/kraken_mini_output.txt",
-        report = f"{config['kraken_path']}kraken_standard/kraken_mini_report.txt"
+        out = f"{config['kraken_path']}kraken_mini_reads/kraken_reads_output.txt",
+        report = f"{config['kraken_path']}kraken_mini_reads/kraken_reads_report.txt"
     params:
         db = config['kraken_db_mini'],
         # Aggiungiamo un check automatico per la compressione
@@ -305,7 +305,7 @@ rule benchmark_binning:
         rm -f {output.report}
         python3 scripts/evaluate_binning.py \
             --truth {input.truth} \
-            --kraken-reads {input.kraken_standard} \
+            --kraken-standard {input.kraken_standard} \
             --kraken-mini {input.kraken_mini} \
             --graphbin-reads {input.graphbin_reads} \
             --mapping {input.mapping} > {output.report}
