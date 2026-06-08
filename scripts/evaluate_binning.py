@@ -73,9 +73,10 @@ def load_kraken_preds(file_path):
     preds = {}
     with open(file_path, 'r') as f:
         for line in f:
-            cols = line.strip().split()
+            cols = line.strip().split('\t')
             if len(cols) >= 3 and cols[0] == 'C':
-                preds[cols[1]] = cols[2]
+                read_id = cols[1].split('/')[0]
+                preds[read_id] = cols[2]
     return preds
 
 def analyze_results(kraken_standard, kraken_mini, graphbin_reads, truth_file, mapping_file):
@@ -90,8 +91,9 @@ def analyze_results(kraken_standard, kraken_mini, graphbin_reads, truth_file, ma
         reader = csv.DictReader(f)  # assume header: read_id,taxonomy,mapq
         for row in reader:
             bin_id = row['taxonomy']
+            read_id = row['read_id'].split('/')[0]
             if bin_id in bin_to_taxid:
-                graphbin_preds[row['read_id']] = bin_to_taxid[bin_id]
+                graphbin_preds[read_id] = bin_to_taxid[bin_id]
 
     sp, sr, sf1, stp, sfp, sfn = evaluate(standard_preds, truth)
     mp, mr, mf1, mtp, mfp, mfn = evaluate(mini_preds, truth)
