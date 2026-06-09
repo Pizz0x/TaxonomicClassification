@@ -7,7 +7,7 @@ def load_cami_truth(file_path):
     truth = {}
 
     if file_path.endswith('.gz'):
-        f = gzip.open(file_path, 'rt')  # 'rt' sta per Read Text (decodifica i byte in stringhe)
+        f = gzip.open(file_path, 'rt')  # 'rt' means Read Text (decode byte to strings)
     else:
         f = open(file_path, 'r')
 
@@ -33,14 +33,15 @@ def load_mapping(mapping_file):
                 mapping[row[0]] = row[1]
     return mapping
 
-def evaluate(predictions, truth):
+def evaluate(predictions, truth, parent_map):
     """Compute Precision, Recall and F1-Score"""
     tp, fp, fn = 0, 0, 0
 
     # Compute true/false positives on predictions
     for read_id, pred_taxid in predictions.items():
         if read_id in truth:
-            if pred_taxid == truth[read_id]:
+            truth_taxid = truth[read_id]
+            if pred_taxid == truth_taxid or is_match_or_ancestor(pred_taxid, truth_taxid, parent_map):
                 tp += 1
             else:
                 fp += 1
@@ -54,7 +55,7 @@ def evaluate(predictions, truth):
 
     return precision, recall, f1, tp, fp, fn
 
-def compute_recovery(kraken_preds, graphbin_preds, truth):
+def compute_recovery(kraken_preds, graphbin_preds, truth, parent_map):
     """Compute how many reads not classified by Kraken are recovered by GraphBin2"""
     kraken_unclassified = set(truth.keys()) - set(kraken_preds.keys())
     recovered_total = 0
@@ -63,7 +64,9 @@ def compute_recovery(kraken_preds, graphbin_preds, truth):
     for read_id in kraken_unclassified:
         if read_id in graphbin_preds:
             recovered_total += 1
-            if graphbin_preds[read_id] == truth[read_id]:
+            pred_taxid = graphbin_preds[read_id]
+            truth_taxid = truth[read_id]
+            if pred_taxid == truth_taxid or is_match_or_ancestor(pred_taxid, truth_taxid, parent_map):
                 recovered_correct += 1
 
     return len(kraken_unclassified), recovered_total, recovered_correct
@@ -79,7 +82,31 @@ def load_kraken_preds(file_path):
                 preds[read_id] = cols[2]
     return preds
 
-def analyze_results(kraken_standard, kraken_mini, graphbin_reads, truth_file, mapping_file):
+def load_taxonomy_tree(nodes_file):
+    """Load taxonomic tree from NCBI database"""
+    parent_map = {}
+    with open(nodes_file, 'r') as f:
+        for line in f:
+            parts = line.split('|')
+            if len(parts) >= 2:
+                node_id = parts[0].strip()
+                parent_id = parts[1].strip()
+                parent_map[node_id] = parent_id
+    return parent_map
+
+def is_match_or_ancestor(pred_id, truth_id, parent_map):
+    """Climb the tree: if the truth is an ancestor of the prediction, that's correct"""
+    current = pred_id
+    while current != '1' and current != '0' and current in parent_map:
+        if current == truth_id:
+            return True
+        next_parent = parent_map[current]
+        if next_parent == current: break # root
+        current = next_parent
+    return current == truth_id
+
+def analyze_results(kraken_standard, kraken_mini, graphbin_reads, truth_file, mapping_file, nodes_file):
+    parent_map = load_taxonomy_tree(nodes_file)
     truth = load_cami_truth(truth_file)
     bin_to_taxid = load_mapping(mapping_file)
 
@@ -95,11 +122,11 @@ def analyze_results(kraken_standard, kraken_mini, graphbin_reads, truth_file, ma
             if bin_id in bin_to_taxid:
                 graphbin_preds[read_id] = bin_to_taxid[bin_id]
 
-    sp, sr, sf1, stp, sfp, sfn = evaluate(standard_preds, truth)
-    mp, mr, mf1, mtp, mfp, mfn = evaluate(mini_preds, truth)
-    gp, gr, gf1, gtp, gfp, gfn = evaluate(graphbin_preds, truth)
+    sp, sr, sf1, stp, sfp, sfn = evaluate(standard_preds, truth, parent_map)
+    mp, mr, mf1, mtp, mfp, mfn = evaluate(mini_preds, truth, parent_map)
+    gp, gr, gf1, gtp, gfp, gfn = evaluate(graphbin_preds, truth, parent_map)
 
-    kraken_unclassified, recovered_tot, recovered_corr = compute_recovery(standard_preds, graphbin_preds, truth)
+    kraken_unclassified, recovered_tot, recovered_corr = compute_recovery(standard_preds, graphbin_preds, truth, parent_map)
 
     print("=== KRAKEN STANDARD ===")
     print(f"Precision: {sp} | Recall: {sr} | F1-Score: {sf1}")
@@ -134,6 +161,7 @@ if __name__ == "__main__":
     parser.add_argument("--kraken-mini", required=True, help="Output Kraken2 on reads (mini db)")
     parser.add_argument("--graphbin-reads", required=True, help="Output of reads_binning.py (read -> bin)")
     parser.add_argument("--mapping", required=True, help="CSV file for mapping bin -> taxid from processor.py")
+    parser.add_argument("--nodes", required=True, help="Path to nodes.dmp from Kraken db")
 
     args = parser.parse_args()
-    analyze_results(args.kraken_standard, args.kraken_mini, args.graphbin_reads, args.truth, args.mapping)
+    analyze_results(args.kraken_standard, args.kraken_mini, args.graphbin_reads, args.truth, args.mapping, args.nodes)

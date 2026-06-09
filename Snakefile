@@ -297,7 +297,8 @@ rule benchmark_binning:
         kraken_standard= rules.preprocessor_reads.output.standard_bins,
         kraken_mini = rules.preprocessor_reads.output.mini_bins,
         mapping= rules.preprocessor.output.mapping,
-        graphbin_reads= rules.graphbin2.output.results
+        graphbin_reads= rules.graphbin2.output.results,
+        nodes = f"{config['kraken_db_standard']}/nodes.dmp"
     output:
         report= config['benchmark_path'] + "binning_report.txt"
     shell:
@@ -308,5 +309,6 @@ rule benchmark_binning:
             --kraken-standard {input.kraken_standard} \
             --kraken-mini {input.kraken_mini} \
             --graphbin-reads {input.graphbin_reads} \
-            --mapping {input.mapping} > {output.report}
+            --mapping {input.mapping} 
+            --nodes {input.nodes} > {output.report}
         """
