@@ -294,8 +294,8 @@ rule graphbin2:
 rule benchmark_binning:
     input:
         truth = config['truth_binning'],
-        kraken_standard= rules.preprocessor_reads.output.standard_bins,
-        kraken_mini = rules.preprocessor_reads.output.mini_bins,
+        kraken_standard = rules.kraken2_reads.output.out,
+        kraken_mini = rules.kraken2_mini.output.out,
         mapping= rules.preprocessor.output.mapping,
         graphbin_reads= rules.graphbin2.output.results,
         nodes = f"{config['kraken_db_standard']}/nodes.dmp"
