@@ -76,7 +76,7 @@ def load_kraken_preds(file_path):
     preds = {}
     with open(file_path, 'r') as f:
         for line in f:
-            cols = line.strip().split('\t')
+            cols = line.strip().split()
             if len(cols) >= 3 and cols[0] == 'C':
                 read_id = cols[1].split('/')[0]
                 preds[read_id] = cols[2]
@@ -126,19 +126,19 @@ def analyze_results(kraken_standard, kraken_mini, graphbin_reads, truth_file, ma
     mp, mr, mf1, mtp, mfp, mfn = evaluate(mini_preds, truth, parent_map)
     gp, gr, gf1, gtp, gfp, gfn = evaluate(graphbin_preds, truth, parent_map)
 
-    kraken_unclassified, recovered_tot, recovered_corr = compute_recovery(standard_preds, graphbin_preds, truth, parent_map)
+    kraken_unclassified, recovered_tot, recovered_corr = compute_recovery(mini_preds, graphbin_preds, truth, parent_map)
 
     print("=== KRAKEN STANDARD ===")
     print(f"Precision: {sp} | Recall: {sr} | F1-Score: {sf1}")
-    print(f"True Positives: {stp} | False Negatives: {sfn}")
+    print(f"True Positives: {stp} | False positives: {sfp} | False Negatives: {sfn}")
 
     print("=== KRAKEN MINI ===")
     print(f"Precision: {mp} | Recall: {mr} | F1-Score: {mf1}")
-    print(f"True Positives: {mtp} | False Negatives: {mfn}")
+    print(f"True Positives: {mtp} | False positives: {mfp} | False Negatives: {mfn}")
 
     print("=== KRAKEN MINI + GRAPHBIN ===")
     print(f"Precision: {gp} | Recall: {gr} | F1-Score: {gf1}")
-    print(f"True positives: {gtp} | False Negatives: {gfn}")
+    print(f"True positives: {gtp} | False positives: {gfp} | False Negatives: {gfn}")
 
     print(""" === RECOVERY ANALYSIS ===""")
     print(f"Total reads in the Gold Standard: {len(truth)}")
@@ -147,11 +147,11 @@ def analyze_results(kraken_standard, kraken_mini, graphbin_reads, truth_file, ma
     if kraken_unclassified > 0:
         perc_tot = recovered_tot / kraken_unclassified * 100
         perc_corr = recovered_corr / kraken_unclassified * 100
-        print(f"GraphBin2 assigned a bin to {recovered_tot} reads ({perc_tot:.2f}% of reads unclassified by Kraken Standard)")
-        print(f"GraphBin2 assigned a correct bin to {recovered_corr} reads ({perc_corr:.2f}% of reads unclassified by Kraken Standard)")
+        print(f"GraphBin2 assigned a bin to {recovered_tot} reads ({perc_tot:.2f}% of reads unclassified by Kraken Mini)")
+        print(f"GraphBin2 assigned a correct bin to {recovered_corr} reads ({perc_corr:.2f}% of reads unclassified by Kraken Mini)")
 
         if recovered_tot > 0:
-            recovery_precision = perc_corr / recovered_tot * 100
+            recovery_precision = recovered_corr / recovered_tot * 100
             print(f"Precision of recovery on unclassified reads: {recovery_precision:.2f}%")
 
 if __name__ == "__main__":
