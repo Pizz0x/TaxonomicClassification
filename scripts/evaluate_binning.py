@@ -141,8 +141,14 @@ def analyze_results(kraken_standard, kraken_mini, graphbin_reads, truth_file, ma
     print(f"True positives: {gtp} | False positives: {gfp} | False Negatives: {gfn}")
 
     print(""" === RECOVERY ANALYSIS ===""")
-    print(f"Total reads in the Gold Standard: {len(truth)}")
-    print(f"Reads unclassified by Kraken Standard: {kraken_unclassified}")
+    print(f"Total reads in the Gold Standard (processed by Kraken): {len(truth)}")
+    print(f"Reads assembled into contigs (processed by GraphBin): {len(graphbin_preds)}")
+
+    lost_reads = len(truth) - len(graphbin_preds)
+    lost_percentage = (lost_reads / len(truth)) * 100
+    print(f"Reads discarded in the assembly phase: {lost_reads} ({lost_percentage}% of the total)")
+
+    print(f"Reads unclassified by Kraken Mini: {kraken_unclassified}")
 
     if kraken_unclassified > 0:
         perc_tot = recovered_tot / kraken_unclassified * 100
