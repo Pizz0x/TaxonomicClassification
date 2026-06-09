@@ -309,6 +309,6 @@ rule benchmark_binning:
             --kraken-standard {input.kraken_standard} \
             --kraken-mini {input.kraken_mini} \
             --graphbin-reads {input.graphbin_reads} \
-            --mapping {input.mapping} 
+            --mapping {input.mapping} \
             --nodes {input.nodes} > {output.report}
         """
