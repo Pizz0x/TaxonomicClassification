@@ -50,12 +50,15 @@ rule spades:
         contigs = config['spades_path'] + "contigs.fasta",
         paths = config['spades_path'] + 'contigs.paths',
         graph = config['spades_path'] + 'assembly_graph_with_scaffolds.gfa'
+    threads: config['threads']
+    benchmark:
+        config['benchmark_path'] + "spades.tsv"
     conda:
         "envs/assembler.yml"
     shell:
         """
         rm -rf {params.path}tmp {output.contigs} {output.paths} {output.graph}
-        metaspades.py --12 {input.read} -o {params.path}tmp -t 16
+        metaspades.py --12 {input.read} -o {params.path}tmp -t {threads} -m 90
 
         cp {params.path}tmp/contigs.fasta {output.contigs}
         cp {params.path}tmp/contigs.paths {output.paths}
@@ -91,6 +94,8 @@ rule kraken2_contigs:
     params:
         db = config['kraken_db_mini']
     threads: config['threads']
+    benchmark:
+        f"{config['benchmark_path']}kraken_mini.tsv"
     conda:
         "envs/assembler.yml"
     shell:
@@ -112,6 +117,8 @@ rule kraken2_reads:
         # Aggiungiamo un check automatico per la compressione
         gzip = "--gzip-compressed" if config['cami_reads'].endswith(".gz") else ""
     threads: config['threads']
+    benchmark:
+        config['benchmark_path'] + "kraken_standard_reads.tsv"
     conda:
         "envs/assembler.yml"
     shell:
@@ -133,8 +140,8 @@ rule kraken2_mini:
         # r2 = config['reads_2']
         reads = config['cami_reads']
     output:
-        out = f"{config['kraken_path']}kraken_standard/kraken_mini_output.txt",
-        report = f"{config['kraken_path']}kraken_standard/kraken_mini_report.txt"
+        out = f"{config['kraken_path']}kraken_mini_reads/kraken_reads_output.txt",
+        report = f"{config['kraken_path']}kraken_mini_reads/kraken_reads_report.txt"
     params:
         db = config['kraken_db_mini'],
         # Aggiungiamo un check automatico per la compressione
@@ -166,14 +173,17 @@ rule abundance:
     output:
         alignment = f"{config['abundance_path']}alignment.bam",
         abundance = f"{config['abundance_path']}abundance.tsv"
+    threads: config['threads']
     conda:
         "envs/assembler.yml"
+    benchmark:
+        f"{config['benchmark_path']}bowtie.tsv"
     shell:
         """
         rm -rf {params.tmp_dir} {output.alignment} {output.alignment}.bai {output.abundance}
         mkdir -p {config[abundance_path]}tmp
         bowtie2-build {input.contigs} {params.index}
-        bowtie2 -x {params.index} --interleaved {input.reads} | samtools view -bS - | samtools sort -o {output.alignment} -
+        bowtie2 -p {threads} -x {params.index} --interleaved {input.reads} | samtools view -bS - | samtools sort -@ {threads} -o {output.alignment} -
         samtools index {output.alignment}
         samtools idxstats {output.alignment} | grep -v "*" |cut -f 1,3 > {output.abundance}
         """
@@ -216,18 +226,19 @@ rule preprocessor:
 rule preprocessor_reads:
     input:
         kraken_reads = rules.kraken2_reads.output.out,
-        kraken_mini = rules.kraken2_mini.output.out,
-        db = config['kraken_db_path']
+        kraken_mini = rules.kraken2_mini.output.out
     output:
         standard_bins = f"{config['kraken_path']}output_kraken_reads.csv",
         mini_bins = f"{config['kraken_path']}output_kraken_mini.csv"
     params:
         rank = config["rank"],
-        len = config["length_threshold"]
+        len = config["length_threshold"],
+        db_standard= config['kraken_db_standard'],
+        db_mini=config['kraken_db_mini']
     shell:
         """
-        python3 ./scripts/processor.py --kraken {input.kraken_reads} --output {output.standard_bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}
-        python3 ./scripts/processor.py --kraken {input.kraken_mini} --output {output.mini_bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {input.db}
+        python3 ./scripts/processor.py --kraken {input.kraken_reads} --output {output.standard_bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {params.db_standard}
+        python3 ./scripts/processor.py --kraken {input.kraken_mini} --output {output.mini_bins} --rank {params.rank} --len {params.len} --assembler {assembler} --reads --db-path {params.db_mini}
         """
 
 
@@ -245,11 +256,14 @@ rule graphbin2:
         results = config['graphbin_path'] + "mini/results.csv"
     conda:
         "envs/graphbin2.yml"
+    benchmark:
+        f"{config['benchmark_path']}graphbin2.tsv"
     params:
         paths_flag = lambda wildcards, input: f"--paths {input.paths}" if assembler=='spades' else "",
         out_dir = config['graphbin_path'] + "mini"
     shell:
         """
+        ulimit -n $(ulimit -Hn)
         rm -rf {params.out_dir} {output.results}
         mkdir -p {params.out_dir}
         graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/mini/ {params.paths_flag}
@@ -281,10 +295,11 @@ rule graphbin2:
 rule benchmark_binning:
     input:
         truth = config['truth_binning'],
-        kraken_standard= rules.preprocessor_reads.output.standard_bins,
-        kraken_mini = rules.preprocessor_reads.output.mini_bins,
+        kraken_standard = rules.kraken2_reads.output.out,
+        kraken_mini = rules.kraken2_mini.output.out,
         mapping= rules.preprocessor.output.mapping,
-        graphbin_reads= rules.graphbin2.output.results
+        graphbin_reads= rules.graphbin2.output.results,
+        nodes = f"{config['kraken_db_standard']}/nodes.dmp"
     output:
         report= config['benchmark_path'] + "binning_report.txt"
     shell:
@@ -292,8 +307,9 @@ rule benchmark_binning:
         rm -f {output.report}
         python3 scripts/evaluate_binning.py \
             --truth {input.truth} \
-            --kraken-reads {input.kraken_standard} \
+            --kraken-standard {input.kraken_standard} \
             --kraken-mini {input.kraken_mini} \
             --graphbin-reads {input.graphbin_reads} \
-            --mapping {input.mapping} > {output.report}
+            --mapping {input.mapping} \
+            --nodes {input.nodes} > {output.report}
         """
