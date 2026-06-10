@@ -263,6 +263,7 @@ rule graphbin2:
         out_dir = config['graphbin_path'] + "mini"
     shell:
         """
+        ulimit -n $(ulimit -Hn)
         rm -rf {params.out_dir} {output.results}
         mkdir -p {params.out_dir}
         graphbin2 --assembler {assembler} --graph {input.graph} --contigs {input.contigs} --binned {input.bins} --abundance {input.abundance} --output data/graphBin_results/mini/ {params.paths_flag}
