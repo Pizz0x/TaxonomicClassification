@@ -4,7 +4,7 @@ spades_path: "./data/spades_results/"
 kraken_path: "./data/kraken_results/"
 metabat_path: "./data/metabat_results/"
 graphbin_path: "./data/graphBin_results/"
-assembler: "spades"
+assembler: "megahit"
 rank: "species"
 length_threshold: 0
 threads: 32
