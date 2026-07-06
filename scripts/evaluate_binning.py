@@ -42,12 +42,18 @@ def evaluate(predictions, truth, parent_map):
         if read_id in truth:
             truth_taxid = truth[read_id]
             if pred_taxid == truth_taxid or is_match_or_ancestor(pred_taxid, truth_taxid, parent_map):
+                # Correct prediction
                 tp += 1
-            else:
+            elif pred_taxid is not None:
+                # Wrong prediction
                 fp += 1
+                fn += 1
+            else:
+                # Left unclassified
+                fn += 1
 
-    # Compute false negatives (reads that are not classified)
-    fn = len(truth) - tp
+        if read_id not in truth:
+            fp += 1
 
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0
