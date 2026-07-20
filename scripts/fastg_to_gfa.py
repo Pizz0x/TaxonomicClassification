@@ -67,5 +67,6 @@ if __name__ == "__main__":
     
     parser.add_argument('--input')
     parser.add_argument('--output')
+    parser.add_argument("--k")
     args = parser.parse_args()
     sys.exit(fastg_to_gfa(args.input, args.output))

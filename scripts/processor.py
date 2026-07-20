@@ -81,11 +81,26 @@ def load_contigs(contigs_path, min_length=0):
         for line in i:
             line = line.rstrip('\n')
             if line.startswith('>'):
-                node = line[1:].split()[0] # get the identifier of the contig (without > and without the rest of the description)
-                try:
-                    len = int(node.split('_')[3])
-                except IndexError:
-                    len = 0
+                parts = line[1:].split()
+                node = parts[0] # get the identifier of the contig (without > and without the rest of the description)
+                len = 0
+
+                # SPAdes
+                if 'NODE_' in node:
+                    try:
+                        len = int(node.split('_')[3])
+                    except IndexError:
+                        len = 0
+
+                # MEGAHIT
+                else:
+                    for part in parts:
+                        if part.startswith('len='):
+                            try:
+                                len = int(part.split('=')[1])
+                            except ValueError:
+                                pass
+
                 if len >= min_length:
                     contigs_set.add(node) # no character >
     return contigs_set
