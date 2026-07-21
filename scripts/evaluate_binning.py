@@ -38,20 +38,22 @@ def evaluate(predictions, truth, parent_map):
     tp, fp, fn = 0, 0, 0
 
     # Compute true/false positives on predictions
-    for read_id, pred_taxid in predictions.items():
-        if read_id in truth:
-            truth_taxid = truth[read_id]
+    for read_id, truth_taxid in truth.items():
+        pred_taxid = predictions.get(read_id)
+
+        if pred_taxid is not None:
             if pred_taxid == truth_taxid or is_match_or_ancestor(pred_taxid, truth_taxid, parent_map):
                 # Correct prediction
                 tp += 1
-            elif pred_taxid is not None:
+            else:
                 # Wrong prediction
                 fp += 1
                 fn += 1
-            else:
-                # Left unclassified
-                fn += 1
+        else:
+            # Left unclassified
+            fn += 1
 
+    for read_id in predictions:
         if read_id not in truth:
             fp += 1
 
