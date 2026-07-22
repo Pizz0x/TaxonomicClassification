@@ -6,7 +6,8 @@ rule all:
     input:
         # config['graphbin_path'] + "graphbin2_output.csv",
         # config['benchmark_path'] + "evaluation_report.txt",
-        config['benchmark_path'] + "binning_report.txt"
+        config['benchmark_path'] + "binning_report.txt",
+        directory(f"{config['benchmark_path']}opal_results")
 
 rule megahit:
     input:
@@ -19,6 +20,8 @@ rule megahit:
         contigs = config["megahit_path"] + "final_contigs.fa",
         input_contigs = config["megahit_path"] + "k141.contigs.fa",
         graph = config["megahit_path"] + "final_graph.gfa"
+    benchmark:
+        config['benchmark_path'] + "megahit.tsv"
     conda:
         "envs/assembler.yml"
     shell:
@@ -270,28 +273,6 @@ rule graphbin2:
         python3 ./scripts/reads_binning.py --alignment {input.alignment} --bin {output.graphbin_csv} --o {output.results} --minmapq 30
         """
 
-# rule benchmark:
-#     input:
-#         kraken = rules.kraken2_contigs.output.out,
-#         graphbin = rules.graphbin2.output.graphbin_csv,
-#         abundance = rules.abundance.output.abundance,
-#         truth = "./data/mock_truth.tsv",
-#         kraken_reads= rules.kraken2_reads.output.out,
-#         graphbin_reads=rules.graphbin2.output.results
-#     output:
-#         report = f"{config['benchmark_path']}evaluation_report_{db_size}.txt"
-#     shell:
-#         """
-#         mkdir -p data/benchmark_results/
-#         python3 ./scripts/evaluate_benchmark.py \
-#             --kraken {input.kraken} \
-#             --graphbin {input.graphbin} \
-#             --abundance {input.abundance} \
-#             --truth {input.truth} \
-#             --kraken_reads {input.kraken_reads} \
-#             --graphbin_reads {input.graphbin_reads} > {output.report}
-#         """
-
 rule benchmark_binning:
     input:
         truth = config['truth_binning'],
@@ -312,4 +293,60 @@ rule benchmark_binning:
             --graphbin-reads {input.graphbin_reads} \
             --mapping {input.mapping} \
             --nodes {input.nodes} > {output.report}
+        """
+
+rule opal_evaluation:
+    input:
+        truth = config['truth_profiling'],
+        kraken_standard = rules.kraken2_reads.output.out,
+        kraken_mini = rules.kraken2_mini.output.out,
+        mapping = rules.preprocessor.output.mapping,
+        graphbin = rules.graphbin2.output.results,
+        nodes = f"{config['kraken_db_standard']}/nodes.dmp",
+        names = f"{config['kraken_db_standard']}/names.dmp"
+    output:
+        profile_standard = f"{config['benchmark_path']}profiles/kraken_standard.profile",
+        profile_mini = f"{config['benchmark_path']}profiles/kraken_mini.profile",
+        profile_graphbin = f"{config['benchmark_path']}profiles/graphbin.profile",
+        opal_dir = directory(f"{config['benchmark_path']}opal_results")
+    conda:
+        "envs/opal.yml"
+    shell:
+        """
+        TOT_READS=$(wc -l < {input.kraken_standard})
+
+        python3 scripts/generate_profile.py \
+            --input {input.kraken_standard} \
+            --type kraken \
+            --nodes {input.nodes} \
+            --names {input.names} \
+            --output {output.profile_standard} \
+            --sample-id "Kraken_Standard" \
+            --total-reads $TOT_READS
+
+        python3 scripts/generate_profile.py \
+            --input {input.kraken_mini} \
+            --type kraken \
+            --nodes {input.nodes} \
+            --names {input.names} \
+            --output {output.profile_mini} \
+            --sample-id "Kraken_Mini" \
+            --total-reads $TOT_READS
+
+        python3 scripts/generate_profile.py \
+            --input {input.graphbin} \
+            --type graphbin \
+            --mapping {input.mapping} \
+            --nodes {input.nodes} \
+            --names {input.names} \
+            --output {output.profile_graphbin} \
+            --sample-id "GraphBin" \
+            --total-reads $TOT_READS
+
+        rm -rf {output.opal_dir}
+
+        opal.py -g {input.truth} \
+             -p {output.profile_standard} {output.profile_mini} {output.profile_graphbin} \
+             -o {output.opal_dir} \
+             -l "Kraken_Standard,Kraken_Mini,GraphBin"
         """
