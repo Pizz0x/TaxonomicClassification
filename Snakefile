@@ -314,6 +314,7 @@ rule opal_evaluation:
     shell:
         """
         TOT_READS=$(wc -l < {input.kraken_standard})
+        GOLD_SAMPLE=$(grep -m 1 '^@SampleID:' {input.truth} | cut -d':' -f2 | tr -d '[:space:]' || echo "Sample_1")
 
         python3 scripts/generate_profile.py \
             --input {input.kraken_standard} \
@@ -321,7 +322,7 @@ rule opal_evaluation:
             --nodes {input.nodes} \
             --names {input.names} \
             --output {output.profile_standard} \
-            --sample-id "Kraken_Standard" \
+            --sample-id "$GOLD_SAMPLE" \
             --total-reads $TOT_READS
 
         python3 scripts/generate_profile.py \
@@ -330,7 +331,7 @@ rule opal_evaluation:
             --nodes {input.nodes} \
             --names {input.names} \
             --output {output.profile_mini} \
-            --sample-id "Kraken_Mini" \
+            --sample-id "$GOLD_SAMPLE" \
             --total-reads $TOT_READS
 
         python3 scripts/generate_profile.py \
@@ -340,7 +341,7 @@ rule opal_evaluation:
             --nodes {input.nodes} \
             --names {input.names} \
             --output {output.profile_graphbin} \
-            --sample-id "GraphBin" \
+            --sample-id "$GOLD_SAMPLE" \
             --total-reads $TOT_READS
 
         rm -rf {output.opal_dir}

@@ -4,4 +4,4 @@ channels:
   - defaults
 dependencies:
   - python=3.10
-  - opal-tools
+  - cami-opal
