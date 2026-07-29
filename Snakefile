@@ -378,7 +378,7 @@ rule amber_evaluation:
         rm -rf {output.amber_dir}
 
         amber.py -g {input.truth} \
-             {output.binning_standard} {output.binning_mini} {output.binning_graphbin} \
              -o {output.amber_dir} \
-             -l "Kraken_Standard,Kraken_Mini,GraphBin"
+             -l "Kraken_Standard,Kraken_Mini,GraphBin" \
+             {output.binning_standard} {output.binning_mini} {output.binning_graphbin} 
         """
