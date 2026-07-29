@@ -371,8 +371,8 @@ rule amber_evaluation:
         """
         GOLD_SAMPLE=$(zgrep -m 1 '^@SampleID:' {input.truth} | cut -d':' -f2 | tr -d '[:space:]' || echo "Sample_1")
 
-        python3 scripts/generate_binning.py --input {input.kraken_standard} --type kraken --mapping {input.mapping} --output {output.binning_standard} --sample-id "$GOLD_SAMPLE"
-        python3 scripts/generate_binning.py --input {input.kraken_mini} --type kraken --mapping {input.mapping} --output {output.binning_mini} --sample-id "$GOLD_SAMPLE"
+        python3 scripts/generate_binning.py --input {input.kraken_standard} --type kraken --output {output.binning_standard} --sample-id "$GOLD_SAMPLE"
+        python3 scripts/generate_binning.py --input {input.kraken_mini} --type kraken --output {output.binning_mini} --sample-id "$GOLD_SAMPLE"
         python3 scripts/generate_binning.py --input {input.graphbin} --type graphbin --mapping {input.mapping} --output {output.binning_graphbin} --sample-id "$GOLD_SAMPLE"
 
         rm -rf {output.amber_dir}

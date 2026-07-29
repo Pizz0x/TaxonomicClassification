@@ -4,11 +4,12 @@ import csv
 def generate_binning(input_file, file_type, mapping_file, out_path, sample_id):
 
     bin_to_taxid = {}
-    with open(mapping_file, 'r') as f:
-        reader = csv.reader(f)
-        for row in reader:
-            if len(row) >= 2:
-                bin_to_taxid[row[0]] = row[1]
+    if mapping_file:
+        with open(mapping_file, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if len(row) >= 2:
+                    bin_to_taxid[row[0]] = row[1]
 
     with open(out_path, 'w') as out:
         # Write the .binning file following the CAMI format
@@ -36,8 +37,9 @@ def generate_binning(input_file, file_type, mapping_file, out_path, sample_id):
                         bin_id = row[1].strip()
                         # Ignore reads that GraphBin does not classify
                         if bin_id and bin_id.lower() != "unclassified":
-                            tax_id = bin_to_taxid[bin_id]
-                            out.write(f"{seq_id}\t{tax_id}\t{tax_id}\n")
+                            tax_id = bin_to_taxid.get(bin_id, None)
+                            if tax_id:
+                                out.write(f"{seq_id}\t{tax_id}\t{tax_id}\n")
 
 
 if __name__ == "__main__":
