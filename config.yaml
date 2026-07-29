@@ -12,6 +12,6 @@ benchmark_path: "./data/benchmark_results/"
 
 cami_reads: "../databases/cami_dataset/CAMI_low/RL_S001__insert_270.fq.gz"
 truth_profiling: "../databases/cami_dataset/CAMI_low/goldstandard_low_1.profile"
-truth_binning: "../databases/cami_dataset/CAMI_low/gs_read_mapping.binning.gz"
+truth_binning: "../databases/cami_dataset/CAMI_low/gs_read_mapping.binning"
 kraken_db_mini: "../databases/kraken_mini"
 kraken_db_standard: "../databases/kraken_standard"
