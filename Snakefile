@@ -5,9 +5,8 @@ assembler = config['assembler'].lower()
 rule all:
     input:
         # config['graphbin_path'] + "graphbin2_output.csv",
-        # config['benchmark_path'] + "evaluation_report.txt",
         config['benchmark_path'] + "binning_report.txt",
-        directory(f"{config['benchmark_path']}opal_results")
+        directory(f"{config['benchmark_path']}amber_results")
 
 rule megahit:
     input:
@@ -359,6 +358,7 @@ rule amber_evaluation:
         truth = config['truth_binning'],
         kraken_standard = rules.kraken2_reads.output.out,
         kraken_mini = rules.kraken2_mini.output.out,
+        mapping = rules.preprocessor.output.mapping,
         graphbin = rules.graphbin2.output.results
     output:
         binning_standard = f"{config['benchmark_path']}binning/kraken_standard.binning",
@@ -369,16 +369,16 @@ rule amber_evaluation:
         "envs/amber.yml"
     shell:
         """
-        GOLD_SAMPLE=$(grep -m 1 '^@SampleID:' {input.truth} | cut -d':' -f2 | tr -d '[:space:]' || echo "Sample_1")
+        GOLD_SAMPLE=$(zgrep -m 1 '^@SampleID:' {input.truth} | cut -d':' -f2 | tr -d '[:space:]' || echo "Sample_1")
 
-        python3 scripts/generate_binning.py --input {input.kraken_standard} --type kraken --output {output.binning_standard} --sample-id "$GOLD_SAMPLE"
-        python3 scripts/generate_binning.py --input {input.kraken_mini} --type kraken --output {output.binning_mini} --sample-id "$GOLD_SAMPLE"
-        python3 scripts/generate_binning.py --input {input.graphbin} --type graphbin --output {output.binning_graphbin} --sample-id "$GOLD_SAMPLE"
+        python3 scripts/generate_binning.py --input {input.kraken_standard} --type kraken --mapping {input.mapping} --output {output.binning_standard} --sample-id "$GOLD_SAMPLE"
+        python3 scripts/generate_binning.py --input {input.kraken_mini} --type kraken --mapping {input.mapping} --output {output.binning_mini} --sample-id "$GOLD_SAMPLE"
+        python3 scripts/generate_binning.py --input {input.graphbin} --type graphbin --mapping {input.mapping} --output {output.binning_graphbin} --sample-id "$GOLD_SAMPLE"
 
         rm -rf {output.amber_dir}
 
         amber.py -g {input.truth} \
-             -p {output.binning_standard} {output.binning_mini} {output.binning_graphbin} \
+             {output.binning_standard} {output.binning_mini} {output.binning_graphbin} \
              -o {output.amber_dir} \
              -l "Kraken_Standard,Kraken_Mini,GraphBin"
         """
