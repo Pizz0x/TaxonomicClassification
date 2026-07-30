@@ -355,6 +355,7 @@ rule benchmark_binning:
 
 rule amber_evaluation:
     input:
+        reads = config['cami_reads'],
         truth = config['truth_binning'],
         kraken_standard = rules.kraken2_reads.output.out,
         kraken_mini = rules.kraken2_mini.output.out,
@@ -364,12 +365,14 @@ rule amber_evaluation:
         binning_standard = f"{config['benchmark_path']}binning/kraken_standard.binning",
         binning_mini = f"{config['benchmark_path']}binning/kraken_mini.binning",
         binning_graphbin = f"{config['benchmark_path']}binning/graphbin.binning",
+        truth_with_length = f"{config['benchmark_path']}binning/gs_read_mapping_with_length.binning",
         amber_dir = directory(f"{config['benchmark_path']}amber_results")
     conda:
         "envs/amber.yml"
     shell:
         """
         GOLD_SAMPLE=$(zgrep -m 1 '^@SampleID:' {input.truth} | cut -d':' -f2 | tr -d '[:space:]' || echo "Sample_1")
+        add_length_column.py -g {input.truth} -f {input.reads} > {output.truth_with_length}
 
         python3 scripts/generate_binning.py --input {input.kraken_standard} --type kraken --output {output.binning_standard} --sample-id "$GOLD_SAMPLE"
         python3 scripts/generate_binning.py --input {input.kraken_mini} --type kraken --output {output.binning_mini} --sample-id "$GOLD_SAMPLE"
@@ -377,8 +380,8 @@ rule amber_evaluation:
 
         rm -rf {output.amber_dir}
 
-        amber.py -g {input.truth} \
+        amber.py -g {output.truth_with_length} \
              -o {output.amber_dir} \
              -l "Kraken_Standard,Kraken_Mini,GraphBin" \
-             {output.binning_standard} {output.binning_mini} {output.binning_graphbin} 
+             {output.binning_standard} {output.binning_mini} {output.binning_graphbin}
         """

@@ -28,8 +28,7 @@ def generate_binning(input_file, file_type, mapping_file, out_path, sample_id):
                         bin_to_taxid[row[0]] = row[1]
 
             with open(input_file, 'r') as f:
-                reader = csv.reader(f)
-                header = next(reader, None)  # Skip header
+                reader = csv.DictReader(f)
                 for row in reader:
                     seq_id = row['read_id']
                     bin_id = row['taxonomy']
