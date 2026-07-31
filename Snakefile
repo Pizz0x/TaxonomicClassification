@@ -372,7 +372,7 @@ rule amber_evaluation:
     shell:
         """
         GOLD_SAMPLE=$(zgrep -m 1 '^@SampleID:' {input.truth} | cut -d':' -f2 | tr -d '[:space:]' || echo "Sample_1")
-        add_length_column.py -g {input.truth} -f {input.reads} > {output.truth_with_length}
+        python3 scripts/generate_binning.py --input {input.truth} --type goldstandard --output {output.truth_with_length} --sample-id "$GOLD_SAMPLE"
 
         python3 scripts/generate_binning.py --input {input.kraken_standard} --type kraken --output {output.binning_standard} --sample-id "$GOLD_SAMPLE"
         python3 scripts/generate_binning.py --input {input.kraken_mini} --type kraken --output {output.binning_mini} --sample-id "$GOLD_SAMPLE"
