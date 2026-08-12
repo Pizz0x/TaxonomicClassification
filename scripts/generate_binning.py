@@ -8,7 +8,7 @@ def generate_binning(input_file, file_type, mapping_file, out_path, sample_id):
         # Write the .binning file following the CAMI format
         out.write("@Version:0.9.1\n")
         out.write(f"@SampleID:{sample_id}\n")
-        out.write("@@SEQUENCEID\tBINID\tTAXID\n")
+        out.write("@@SEQUENCEID\tBINID\tTAXID\tLENGTH\n")
 
         if file_type == 'kraken':
             with open(input_file, 'r') as f:
@@ -16,7 +16,7 @@ def generate_binning(input_file, file_type, mapping_file, out_path, sample_id):
                     parts = line.strip().split()
                     # Take only classified reads
                     if len(parts) >= 3 and parts[0] == 'C':
-                        seq_id = parts[1].split('/')[0]
+                        seq_id = parts[1]
                         tax_id = parts[2]
                         out.write(f"{seq_id}\t{tax_id}\t{tax_id}\t1\n")
 
@@ -54,7 +54,7 @@ def generate_binning(input_file, file_type, mapping_file, out_path, sample_id):
                         seq_id = parts[0]
                         bin_id = parts[1]
                         tax_id = parts[2]
-                        out.write(f"{seq_id}\t{bin_id}\t{tax_id}\t1\n")
+                        out.write(f"{seq_id}\t{tax_id}\t{tax_id}\t1\n")
 
 
 if __name__ == "__main__":

@@ -4,35 +4,31 @@ assembler = config['assembler'].lower()
 
 rule all:
     input:
-        # config['graphbin_path'] + "graphbin2_output.csv",
         config['benchmark_path'] + "binning_report.txt",
         directory(f"{config['benchmark_path']}amber_results")
 
 rule megahit:
     input:
-        # r1 = config["reads_1"],
-        # r2 = config["reads_2"]
         reads = config['cami_reads']
     params:
         path = config["megahit_path"]
     output:
         contigs = config["megahit_path"] + "final_contigs.fa",
         input_contigs = config["megahit_path"] + "k141.contigs.fa",
-        graph = config["megahit_path"] + "final_graph.gfa"
+        graph_fastg = config["megahit_path"] + "final_graph.fastg"
     benchmark:
         config['benchmark_path'] + "megahit.tsv"
     conda:
         "envs/assembler.yml"
     shell:
         """
-        rm -rf {params.path}tmp {output.contigs} {output.input_contigs} {output.graph}
+        rm -rf {params.path}tmp {output.contigs} {output.input_contigs} {output.graph_fastg}
     
         megahit --12 {input.reads} -o {params.path}tmp
 
         MAX_K=$(ls {params.path}tmp/intermediate_contigs/k*.final.contigs.fa | sed 's/.*k//;s/.final.contigs.fa//' | sort -n | tail -n 1)
 
-        megahit_toolkit contig2fastg $MAX_K {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa > {params.path}tmp/tmp_graph.fastg
-        python3 scripts/fastg_to_gfa.py --input {params.path}tmp/tmp_graph.fastg --output {output.graph} --k $MAX_K
+        megahit_toolkit contig2fastg $MAX_K {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa > {output.graph_fastg}
 
         cp {params.path}tmp/final.contigs.fa {output.contigs}
         cp {params.path}tmp/intermediate_contigs/k${{MAX_K}}.contigs.fa {output.input_contigs}
@@ -40,11 +36,19 @@ rule megahit:
         rm -rf {params.path}tmp
         """
 
+rule preprocess4megahit:
+    input:
+        graph = rules.megahit.output.graph_fastg
+    output:
+        out_graph = config["megahit_path"] + "final_graph1.gfa"
+    shell:
+        """
+        scripts/fastg2gfa {input.graph} > {output.out_graph}
+        """
+
 
 rule spades:
     input:
-        # r1 = config['reads_1'],
-        # r2 = config['reads_2']
         read = config['cami_reads']
     params:
         path = config["spades_path"]
@@ -73,7 +77,7 @@ def get_assembler(wildcards):
     if assembler == 'megahit':
         return {
             "contigs": rules.megahit.output.contigs,
-            "graph": rules.megahit.output.graph,
+            "graph": rules.preprocess4megahit.output.out_graph,
             "input_contigs": rules.megahit.output.input_contigs,
             "paths": []
         }
@@ -105,11 +109,9 @@ rule kraken2_contigs:
         rm -f {output.out} {output.report}
         kraken2 --db {params.db} {input.contigs} > {output.out} --report {output.report} --threads {threads}
         """
+
 rule kraken2_reads:
     input:
-        # contigs = lambda wildcards: get_assembler(wildcards)['contigs']
-        # r1 = config['reads_1'],
-        # r2 = config['reads_2']
         reads = config['cami_reads']
     output:
         out = f"{config['kraken_path']}kraken_standard/kraken_reads_output.txt",
@@ -137,9 +139,6 @@ rule kraken2_reads:
 
 rule kraken2_mini:
     input:
-        # contigs = lambda wildcards: get_assembler(wildcards)['contigs']
-        # r1 = config['reads_1'],
-        # r2 = config['reads_2']
         reads = config['cami_reads']
     output:
         out = f"{config['kraken_path']}kraken_mini_reads/kraken_reads_output.txt",
@@ -165,8 +164,6 @@ rule kraken2_mini:
 
 rule abundance:
     input:
-        # r1 = config["reads_1"],
-        # r2 = config["reads_2"],
         reads = config['cami_reads'],
         contigs = lambda wildcards: get_assembler(wildcards)['contigs']
     params:

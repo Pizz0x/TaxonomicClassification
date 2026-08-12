@@ -39,7 +39,16 @@ def assign_reads_with_filter(bam_input, csv_input, output_file, min_mapq):
                 if not (read.is_secondary or read.is_supplementary):
                     if read.reference_name in contig_to_tax:
                         label = contig_to_tax[read.reference_name]
-                        out.write(f"{read.query_name},{label},{read.mapping_quality}\n")
+                        # out.write(f"{read.query_name},{label},{read.mapping_quality}\n")
+
+                        if read.is_read1:
+                            read_id = read.query_name + "/1"
+                        elif read.is_read2:
+                            read_id = read.query_name + "/2"
+                        else:
+                            read_id = read.query_name
+
+                        out.write(f"{read_id},{label},{read.mapping_quality}\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Assign mapped reads to bins using a contig label map.")
