@@ -4,7 +4,6 @@ assembler = config['assembler'].lower()
 
 rule all:
     input:
-        config['benchmark_path'] + "binning_report.txt",
         directory(f"{config['benchmark_path']}amber_results")
 
 rule megahit:
@@ -269,95 +268,15 @@ rule graphbin2:
         python3 ./scripts/reads_binning.py --alignment {input.alignment} --bin {output.graphbin_csv} --o {output.results} --minmapq 30
         """
 
-rule benchmark_binning:
-    input:
-        truth = config['truth_binning'],
-        kraken_standard = rules.kraken2_reads.output.out,
-        kraken_mini = rules.kraken2_mini.output.out,
-        mapping= rules.preprocessor.output.mapping,
-        graphbin_reads= rules.graphbin2.output.results,
-        nodes = f"{config['kraken_db_standard']}/nodes.dmp"
-    output:
-        report= config['benchmark_path'] + "binning_report.txt"
-    shell:
-        """
-        rm -f {output.report}
-        python3 scripts/evaluate_binning.py \
-            --truth {input.truth} \
-            --kraken-standard {input.kraken_standard} \
-            --kraken-mini {input.kraken_mini} \
-            --graphbin-reads {input.graphbin_reads} \
-            --mapping {input.mapping} \
-            --nodes {input.nodes} > {output.report}
-        """
-
-# rule opal_evaluation:
-#     input:
-#         truth = config['truth_profiling'],
-#         kraken_standard = rules.kraken2_reads.output.out,
-#         kraken_mini = rules.kraken2_mini.output.out,
-#         mapping = rules.preprocessor.output.mapping,
-#         graphbin = rules.graphbin2.output.results,
-#         nodes = f"{config['kraken_db_standard']}/nodes.dmp",
-#         names = f"{config['kraken_db_standard']}/names.dmp"
-#     output:
-#         profile_standard = f"{config['benchmark_path']}profiles/kraken_standard.profile",
-#         profile_mini = f"{config['benchmark_path']}profiles/kraken_mini.profile",
-#         profile_graphbin = f"{config['benchmark_path']}profiles/graphbin.profile",
-#         opal_dir = directory(f"{config['benchmark_path']}opal_results")
-#     conda:
-#         "envs/opal.yml"
-#     shell:
-#         """
-#         TOT_READS=$(wc -l < {input.kraken_standard})
-#         GOLD_SAMPLE=$(grep -m 1 '^@SampleID:' {input.truth} | cut -d':' -f2 | tr -d '[:space:]' || echo "Sample_1")
-#
-#         python3 scripts/generate_profile.py \
-#             --input {input.kraken_standard} \
-#             --type kraken \
-#             --nodes {input.nodes} \
-#             --names {input.names} \
-#             --output {output.profile_standard} \
-#             --sample-id "$GOLD_SAMPLE" \
-#             --total-reads $TOT_READS
-#
-#         python3 scripts/generate_profile.py \
-#             --input {input.kraken_mini} \
-#             --type kraken \
-#             --nodes {input.nodes} \
-#             --names {input.names} \
-#             --output {output.profile_mini} \
-#             --sample-id "$GOLD_SAMPLE" \
-#             --total-reads $TOT_READS
-#
-#         python3 scripts/generate_profile.py \
-#             --input {input.graphbin} \
-#             --type graphbin \
-#             --mapping {input.mapping} \
-#             --nodes {input.nodes} \
-#             --names {input.names} \
-#             --output {output.profile_graphbin} \
-#             --sample-id "$GOLD_SAMPLE" \
-#             --total-reads $TOT_READS
-#
-#         rm -rf {output.opal_dir}
-#
-#         opal.py -g {input.truth} \
-#              -p {output.profile_standard} {output.profile_mini} {output.profile_graphbin} \
-#              -o {output.opal_dir} \
-#              -l "Kraken_Standard,Kraken_Mini,GraphBin" \
-#              --filter 0.01
-#         """
-
-
 rule amber_evaluation:
     input:
-        reads = config['cami_reads'],
+        length = config['read_length'],
         truth = config['truth_binning'],
         kraken_standard = rules.kraken2_reads.output.out,
         kraken_mini = rules.kraken2_mini.output.out,
         mapping = rules.preprocessor.output.mapping,
-        graphbin = rules.graphbin2.output.results
+        graphbin = rules.graphbin2.output.results,
+        ncbi = config['ncbi_taxonomy']
     output:
         binning_standard = f"{config['benchmark_path']}binning/kraken_standard.binning",
         binning_mini = f"{config['benchmark_path']}binning/kraken_mini.binning",
@@ -369,16 +288,17 @@ rule amber_evaluation:
     shell:
         """
         GOLD_SAMPLE=$(zgrep -m 1 '^@SampleID:' {input.truth} | cut -d':' -f2 | tr -d '[:space:]' || echo "Sample_1")
-        python3 scripts/generate_binning.py --input {input.truth} --type goldstandard --output {output.truth_with_length} --sample-id "$GOLD_SAMPLE"
+        python3 scripts/generate_binning.py --input {input.truth} --type goldstandard --output {output.truth_with_length} --sample-id "$GOLD_SAMPLE" --length {input.length}
 
-        python3 scripts/generate_binning.py --input {input.kraken_standard} --type kraken --output {output.binning_standard} --sample-id "$GOLD_SAMPLE"
-        python3 scripts/generate_binning.py --input {input.kraken_mini} --type kraken --output {output.binning_mini} --sample-id "$GOLD_SAMPLE"
-        python3 scripts/generate_binning.py --input {input.graphbin} --type graphbin --mapping {input.mapping} --output {output.binning_graphbin} --sample-id "$GOLD_SAMPLE"
+        python3 scripts/generate_binning.py --input {input.kraken_standard} --type kraken --output {output.binning_standard} --sample-id "$GOLD_SAMPLE" --length {input.length}
+        python3 scripts/generate_binning.py --input {input.kraken_mini} --type kraken --output {output.binning_mini} --sample-id "$GOLD_SAMPLE" --length {input.length}
+        python3 scripts/generate_binning.py --input {input.graphbin} --type graphbin --mapping {input.mapping} --output {output.binning_graphbin} --sample-id "$GOLD_SAMPLE" --length {input.length}
 
         rm -rf {output.amber_dir}
 
         amber.py -g {output.truth_with_length} \
              -o {output.amber_dir} \
              -l "Kraken_Standard,Kraken_Mini,GraphBin" \
+             --ncbi_dir {input.ncbi} \
              {output.binning_standard} {output.binning_mini} {output.binning_graphbin}
         """

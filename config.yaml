@@ -10,8 +10,9 @@ length_threshold: 0
 threads: 32
 benchmark_path: "./data/benchmark_results/"
 
-cami_reads: "../databases/cami_dataset/cami_marine/simulation_short_read/2018.08.15_09.49.32_sample_0/reads/anonymous_reads.fq.gz "
-truth_profiling: "../databases/cami_dataset/CAMI_low/goldstandard_low_1.profile"
+cami_reads: "../databases/cami_dataset/cami_marine/simulation_short_read/2018.08.15_09.49.32_sample_0/reads/anonymous_reads.fq.gz"
 truth_binning: "../databases/cami_dataset/cami_marine/simulation_short_read/2018.08.15_09.49.32_sample_0/reads/reads_mapping.tsv.gz"
 kraken_db_mini: "../databases/kraken_mini"
 kraken_db_standard: "../databases/kraken_standard"
+ncbi_taxonomy: "../databases/taxonomy"
+read_length: 150
