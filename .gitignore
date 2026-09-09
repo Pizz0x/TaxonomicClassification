@@ -7,3 +7,4 @@ data/spades_results/*
 data/SRR5058924/*
 GraphBin2/
 .snakemake/
+.idea
