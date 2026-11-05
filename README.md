@@ -211,22 +211,4 @@ For a direct metric report, `evaluate_binning.py` accepts the CAMI truth,
 both Kraken read outputs, the GraphBin read output, the bin mapping and
 `nodes.dmp`.
 
-## Notes and limitations
-
-- The workflow expects interleaved paired reads through Kraken2, Bowtie2 and
- the assembler.
-- `config.yaml` is intentionally environment-specific: paths to reads,
- truth data and databases must be changed on another machine.
-- Kraken2 contig classification uses the mini database by default, while
- direct read classification is run against both databases.
-- GraphBin2 read assignments are restricted to primary alignments with MAPQ
- 30 or higher.
-- `envs/opal.yml`, `envs/metabat2.yml` and parts of `commands.txt` document
- optional or earlier experiments; they are not required by the default
- Snakemake target.
-
-## Source
-
-<https://github.com/Pizz0x/TaxonomicClassification>
-
 <!-- markdownlint-enable MD010 -->
