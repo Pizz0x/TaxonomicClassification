@@ -147,6 +147,8 @@ rule kraken2_mini:
         # Aggiungiamo un check automatico per la compressione
         gzip = "--gzip-compressed" if config['cami_reads'].endswith(".gz") else ""
     threads: config['threads']
+    benchmark:
+        f"{config['benchmark_path']}kraken_mini_reads.tsv"
     conda:
         "envs/assembler.yml"
     shell:
